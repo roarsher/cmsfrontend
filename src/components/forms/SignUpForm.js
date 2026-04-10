@@ -70,7 +70,7 @@ const SignupForm = () => {
         payload.adminKey = formData.adminKey;
       }
 
-      await API.post("/api/auth/register", payload);
+      await API.post("/auth/register", payload);
 
       toast.success(`${accountType.charAt(0).toUpperCase() + accountType.slice(1)} Account Created Successfully!`);
       navigate("/login");
