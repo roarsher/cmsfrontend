@@ -13,6 +13,7 @@ const LiveAttendance = () => {
   const [radius, setRadius]           = useState(100);
   const [session, setSession]         = useState(null);
   const [submissions, setSubmissions] = useState([]);
+  const [report, setReport]             = useState(null);
   const [timeLeft, setTimeLeft]       = useState(0);
   const [gps, setGps]                 = useState(null);
   const [gpsError, setGpsError]       = useState("");
@@ -59,6 +60,16 @@ const LiveAttendance = () => {
       });
     });
 
+    socketRef.current.on("report_ready", async ({ sessionId }) => {
+      try {
+        const res = await API.get(`/live-attendance/session/${sessionId}`);
+        if (res.data.session?.report?.generated) {
+          setReport(res.data.session.report);
+          setSession((s) => s ? { ...s, active: false } : null);
+        }
+      } catch (e) { console.error(e); }
+    });
+
     return () => { socketRef.current?.disconnect(); };
   }, [user]);
 
@@ -95,6 +106,7 @@ const LiveAttendance = () => {
       });
       setSession(res.data.session);
       setSubmissions([]);
+      setReport(null);
       showToast("Session started! Students can now mark attendance.");
     } catch (e) {
       showToast(e.response?.data?.message || "Failed to start", "error");
@@ -104,10 +116,11 @@ const LiveAttendance = () => {
   const stopSession = async () => {
     if (!session) return;
     try {
-      await API.put(`/live-attendance/stop/${session._id}`);
+      const res = await API.put(`/live-attendance/stop/${session._id}`);
       setSession((s) => ({ ...s, active: false }));
       clearInterval(timerRef.current);
-      showToast("Session stopped.");
+      if (res.data.report) setReport(res.data.report);
+      showToast("Session stopped. Report generated!");
     } catch (e) { showToast("Failed to stop", "error"); }
   };
 
@@ -135,19 +148,26 @@ const LiveAttendance = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?._id, session?.active]);
 
-  // ✅ PDF Download of present students
+  // ✅ PDF Download — uses report if available, else submissions
   const downloadPDF = () => {
-    const present = submissions.filter((s) => s.status === "Present");
+    const entries = report?.entries || [];
+    const present = entries.length > 0
+      ? entries.filter(e => e.status === "Present")
+      : submissions.filter((s) => s.status === "Present");
     const date    = new Date().toLocaleDateString("en-IN", { day:"numeric", month:"long", year:"numeric" });
-    const rows    = present.map((s, i) =>
-      `<tr style="background:${i%2===0?"#f8fafc":"#fff"}">
+    // Full sheet with ALL students if report available
+    const allEntries = report?.entries || present.map(s => ({ ...s, status: "Present" }));
+    const rows = allEntries.map((s, i) => {
+      const color = s.status === "Present" ? "#10b981" : s.status === "Absent" ? "#ef4444" : "#f59e0b";
+      return `<tr style="background:${i%2===0?"#f8fafc":"#fff"}">
         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0">${i+1}</td>
         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-weight:600">${s.name}</td>
         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-family:monospace">${s.rollNumber}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:#10b981;font-weight:600">✓ Present</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">${s.gpsValid?"✓ GPS":"✗ GPS"}</td>
-      </tr>`
-    ).join("");
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:${color};font-weight:700">${s.status === "Present" ? "✓ Present" : s.status === "Absent" ? "✗ Absent" : "⚠ Rejected"}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">${s.gpsValid === true ? "✓ GPS" : s.gpsValid === false ? "✗ GPS" : "—"}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">${s.distance != null ? s.distance+"m" : "—"}</td>
+      </tr>`;
+    }).join("");
 
     const html = `<html><head><title>Attendance Report</title>
     <style>
@@ -166,12 +186,13 @@ const LiveAttendance = () => {
     <p class="sub">Course: <strong>${selectedCourseName}</strong> &nbsp;|&nbsp; Date: ${date}</p>
     <p class="sub">Department: <strong>${user?.department || ""}</strong> &nbsp;|&nbsp; Teacher: <strong>${user?.name || ""}</strong></p>
     <div class="stats">
-      <div class="stat"><h2>${present.length}</h2><p>Present</p></div>
-      <div class="stat"><h2>${submissions.filter(s=>s.status==="Rejected").length}</h2><p>Rejected</p></div>
-      <div class="stat"><h2>${submissions.length}</h2><p>Total Submitted</p></div>
+      <div class="stat"><h2>${report?.totalStudents || submissions.length}</h2><p>Total Students</p></div>
+      <div class="stat" style="border-left:3px solid #10b981"><h2 style="color:#10b981">${report?.presentCount ?? present.length}</h2><p>Present</p></div>
+      <div class="stat" style="border-left:3px solid #ef4444"><h2 style="color:#ef4444">${report?.absentCount ?? 0}</h2><p>Absent</p></div>
+      <div class="stat" style="border-left:3px solid #f59e0b"><h2 style="color:#f59e0b">${report?.rejectedCount ?? submissions.filter(s=>s.status==="Rejected").length}</h2><p>Rejected</p></div>
     </div>
     <table>
-      <thead><tr><th>#</th><th>Name</th><th>Roll No.</th><th>Status</th><th>GPS</th></tr></thead>
+      <thead><tr><th>#</th><th>Name</th><th>Roll No.</th><th>Status</th><th>GPS</th><th>Distance</th></tr></thead>
       <tbody>${rows || "<tr><td colspan='5' style='text-align:center;padding:20px;color:#94a3b8'>No students marked present</td></tr>"}</tbody>
     </table>
     <div class="footer">
@@ -215,7 +236,107 @@ const LiveAttendance = () => {
           : gpsError || "Getting GPS location..."}
       </div>
 
-      {!session || !session.active ? (
+      {/* ── FULL REPORT (shown after session ends) ── */}
+      {!session?.active && report?.generated && (
+        <div className="space-y-4">
+          {/* Report header */}
+          <div className="bg-slate-800 text-white rounded-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-slate-400 text-xs uppercase font-semibold">Session Report</p>
+                <p className="font-bold text-lg mt-0.5">{selectedCourseName}</p>
+                <p className="text-slate-400 text-xs mt-1">{new Date(report.generatedAt).toLocaleString("en-IN")}</p>
+              </div>
+              <button onClick={downloadPDF}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+                📄 Download PDF
+              </button>
+            </div>
+            {/* Stats */}
+            <div className="grid grid-cols-4 gap-3">
+              {[
+                { label: "Total",    value: report.totalStudents, color: "text-white",         bg: "bg-slate-700" },
+                { label: "Present",  value: report.presentCount,  color: "text-emerald-400",   bg: "bg-emerald-900/40" },
+                { label: "Absent",   value: report.absentCount,   color: "text-red-400",       bg: "bg-red-900/40" },
+                { label: "Rejected", value: report.rejectedCount, color: "text-amber-400",     bg: "bg-amber-900/40" },
+              ].map((s) => (
+                <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center`}>
+                  <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-slate-400 text-xs mt-1">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            {/* Attendance % bar */}
+            <div className="mt-4">
+              <div className="flex justify-between text-xs text-slate-400 mb-1">
+                <span>Attendance Rate</span>
+                <span>{report.totalStudents > 0 ? Math.round((report.presentCount / report.totalStudents) * 100) : 0}%</span>
+              </div>
+              <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${report.totalStudents > 0 ? (report.presentCount / report.totalStudents) * 100 : 0}%` }} />
+              </div>
+            </div>
+          </div>
+
+          {/* Full student table */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <h2 className="font-bold text-slate-700">📋 Full Attendance Sheet</h2>
+              <div className="flex gap-2 text-xs">
+                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">✓ {report.presentCount} Present</span>
+                <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full font-semibold">✗ {report.absentCount} Absent</span>
+                <span className="bg-amber-100 text-amber-600 px-2 py-1 rounded-full font-semibold">⚠ {report.rejectedCount} Rejected</span>
+              </div>
+            </div>
+            <div className="overflow-x-auto max-h-96 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 text-slate-500 uppercase text-xs sticky top-0">
+                  <tr>
+                    <th className="px-4 py-3 text-left">#</th>
+                    <th className="px-4 py-3 text-left">Name</th>
+                    <th className="px-4 py-3 text-left">Roll No.</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-center">GPS</th>
+                    <th className="px-4 py-3 text-center">Distance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {(report.entries || []).map((e, i) => (
+                    <tr key={i} className={`hover:bg-slate-50 transition ${e.status === "Present" ? "bg-emerald-50/20" : e.status === "Absent" ? "" : "bg-amber-50/20"}`}>
+                      <td className="px-4 py-3 text-slate-400 text-xs">{i + 1}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-800">{e.name}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-slate-600">{e.rollNumber}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`text-xs px-2 py-1 rounded-full font-bold ${
+                          e.status === "Present"  ? "bg-emerald-100 text-emerald-700" :
+                          e.status === "Absent"   ? "bg-red-100 text-red-600" :
+                                                    "bg-amber-100 text-amber-600"
+                        }`}>
+                          {e.status === "Present" ? "✓ Present" : e.status === "Absent" ? "✗ Absent" : "⚠ Rejected"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-xs">
+                        {e.gpsValid === true ? <span className="text-emerald-600 font-semibold">✓</span> :
+                         e.gpsValid === false ? <span className="text-red-500 font-semibold">✗</span> : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-center text-xs text-slate-500">
+                        {e.distance != null ? `${e.distance}m` : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <button onClick={() => { setReport(null); setSession(null); setSubmissions([]); }}
+            className="w-full border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+            + Start New Session
+          </button>
+        </div>
+      )}
+
+      {!session?.active && !report?.generated && (
         /* ── START SESSION FORM ── */
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">
           <h2 className="text-lg font-bold text-slate-700">⚙️ Configure Session</h2>
@@ -256,7 +377,9 @@ const LiveAttendance = () => {
             {loading ? "Starting..." : "🚀 Start Live Session"}
           </button>
         </div>
-      ) : (
+      )}
+
+      {session?.active && (
         /* ── ACTIVE SESSION ── */
         <div className="space-y-4">
 
