@@ -9,10 +9,13 @@ const STUDENT_LINKS = [
   { label: "Attendance", path: "/student/attendance" },
   { label: "Marks",      path: "/student/marks" },
   { label: "Fees",       path: "/student/fees" },
+  { label: "Live Attendance", path: "/student/live-attendance" }
 ];
 
 const TEACHER_LINKS = [
   { label: "Dashboard",  path: "/teacher" },
+  { label: "Live Attendance", path: "/teacher/live-attendance" },
+ 
 ];
 
 const ADMIN_LINKS = [
@@ -21,6 +24,7 @@ const ADMIN_LINKS = [
   { label: "Teachers",   path: "/admin/manageteachers" },
   { label: "Fees",       path: "/admin/fees" },
   { label: "Notices",    path: "/admin/notices" },
+  { label: "Routines", path: "/admin/routines" },
 ];
 
 const Navbars = ({ title }) => {

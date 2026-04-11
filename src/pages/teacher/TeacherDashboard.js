@@ -1,6 +1,6 @@
  
-// import React, { useEffect, useState, useContext, useCallback } from "react";
 
+// import React, { useEffect, useState, useContext, useCallback } from "react";
 // import API from "../../api/axios";
 // import { AuthContext } from "../../context/AuthContext";
 // import {
@@ -200,9 +200,16 @@
 //       prev.map((r) => r.studentId === id ? { ...r, status: r.status === "Present" ? "Absent" : "Present" } : r)
 //     );
 
+//   // ✅ Bulk actions
+//   const markAllPresent = () => setRows((prev) => prev.map((r) => ({ ...r, status: "Present" })));
+//   const markAllAbsent  = () => setRows((prev) => prev.map((r) => ({ ...r, status: "Absent" })));
+
 //   const filtered = rows.filter(
 //     (r) => r.name.toLowerCase().includes(search.toLowerCase()) || r.roll?.toLowerCase().includes(search.toLowerCase())
 //   );
+
+//   const presentCount = rows.filter(r => r.status === "Present").length;
+//   const absentCount  = rows.filter(r => r.status === "Absent").length;
 
 //   const submit = async () => {
 //     if (!courseId) return onToast("Please select a course", "error");
@@ -213,7 +220,7 @@
 //           API.post("/attendance/mark", { studentId: r.studentId, courseId, status: r.status })
 //         )
 //       );
-//       onToast("Attendance marked successfully!", "success");
+//       onToast(`Attendance marked! ${presentCount} Present, ${absentCount} Absent`, "success");
 //       onRefresh();
 //       onClose();
 //     } catch (err) {
@@ -231,29 +238,55 @@
 //           {courses.map((c) => <option key={c._id} value={c._id}>{c.name} {c.code ? `(${c.code})` : ""}</option>)}
 //         </FormSelect>
 
+//         {/* ✅ Bulk Action Buttons */}
+//         <div className="flex gap-2">
+//           <button
+//             onClick={markAllPresent}
+//             className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-2 rounded-xl transition"
+//           >
+//             ✓ Mark All Present
+//           </button>
+//           <button
+//             onClick={markAllAbsent}
+//             className="flex-1 bg-red-500 hover:bg-red-600 text-white text-xs font-bold py-2 rounded-xl transition"
+//           >
+//             ✗ Mark All Absent
+//           </button>
+//         </div>
+
+//         {/* Tip */}
+//         <p className="text-xs text-gray-400 bg-blue-50 rounded-xl px-3 py-2 text-center">
+//           💡 <strong>Tip:</strong> Click "Mark All Present" first, then toggle only absent students. Fast for large classes!
+//         </p>
+
 //         <div className="relative">
 //           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icons.Search /></span>
 //           <input
-//             placeholder="Search student…"
+//             placeholder="Search student by name or roll…"
 //             value={search}
 //             onChange={(e) => setSearch(e.target.value)}
 //             className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50"
 //           />
 //         </div>
 
-//         <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+//         <div className="max-h-72 overflow-y-auto space-y-2 pr-1">
 //           {filtered.map((r) => (
-//             <div key={r.studentId} className="flex items-center justify-between px-4 py-3 rounded-xl border border-gray-100 hover:bg-gray-50 transition">
-//               <div>
-//                 <p className="text-sm font-semibold text-gray-800">{r.name}</p>
-//                 <p className="text-xs text-gray-400">{r.roll}</p>
+//             <div key={r.studentId} className={`flex items-center justify-between px-4 py-3 rounded-xl border transition ${
+//               r.status === "Present" ? "border-emerald-100 bg-emerald-50/40" : "border-red-100 bg-red-50/40"
+//             }`}>
+//               <div className="flex items-center gap-3">
+//                 <div className={`w-2 h-2 rounded-full ${r.status === "Present" ? "bg-emerald-500" : "bg-red-500"}`} />
+//                 <div>
+//                   <p className="text-sm font-semibold text-gray-800">{r.name}</p>
+//                   <p className="text-xs text-gray-400">{r.roll}</p>
+//                 </div>
 //               </div>
 //               <button
 //                 onClick={() => toggle(r.studentId)}
 //                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
 //                   r.status === "Present"
-//                     ? "bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-//                     : "bg-red-100 text-red-600 hover:bg-red-200"
+//                     ? "bg-emerald-100 text-emerald-700 hover:bg-red-100 hover:text-red-600"
+//                     : "bg-red-100 text-red-600 hover:bg-emerald-100 hover:text-emerald-700"
 //                 }`}
 //               >
 //                 {r.status}
@@ -263,15 +296,24 @@
 //           {filtered.length === 0 && <p className="text-center text-gray-400 text-sm py-4">No students found</p>}
 //         </div>
 
-//         <div className="flex gap-2 text-xs text-gray-500 bg-gray-50 rounded-xl p-3">
-//           <span className="font-semibold text-emerald-600">{rows.filter(r => r.status === "Present").length} Present</span>
-//           <span>·</span>
-//           <span className="font-semibold text-red-500">{rows.filter(r => r.status === "Absent").length} Absent</span>
-//           <span>·</span>
-//           <span>{rows.length} Total</span>
+//         {/* Summary bar */}
+//         <div className="bg-slate-50 rounded-xl p-3">
+//           <div className="flex justify-between text-xs text-gray-500 mb-2">
+//             <span className="font-bold text-emerald-600">✓ {presentCount} Present</span>
+//             <span>{rows.length} Total</span>
+//             <span className="font-bold text-red-500">✗ {absentCount} Absent</span>
+//           </div>
+//           <div className="h-2 bg-red-100 rounded-full overflow-hidden">
+//             <div
+//               className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+//               style={{ width: `${rows.length > 0 ? (presentCount / rows.length) * 100 : 0}%` }}
+//             />
+//           </div>
 //         </div>
 
-//         <SubmitBtn loading={loading} onClick={submit}>Mark Attendance for All</SubmitBtn>
+//         <SubmitBtn loading={loading} onClick={submit}>
+//           {loading ? "Saving..." : `Submit Attendance (${presentCount}P / ${absentCount}A)`}
+//         </SubmitBtn>
 //       </div>
 //     </Modal>
 //   );
@@ -1385,6 +1427,7 @@ const NoticeItem = ({ text, time, type }) => {
 const TeacherDashboard = () => {
   const { user } = useContext(AuthContext);
   const [students, setStudents]   = useState([]);
+  const [todayClasses, setTodayClasses] = useState([]);
   const [courses, setCourses]     = useState([]);
   const [notices, setNotices]     = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -1398,10 +1441,11 @@ const TeacherDashboard = () => {
 
   const fetchData = useCallback(async () => {
     try {
-      const [studRes, courseRes, noticeRes] = await Promise.allSettled([
+      const [studRes, courseRes, noticeRes, classRes] = await Promise.allSettled([
         API.get("/teacher/students"),
         API.get("/teacher/courses"),
         API.get("/teacher/notices"),
+        API.get("/routines/my-today"),
       ]);
 
       if (studRes.status === "fulfilled") {
@@ -1431,6 +1475,9 @@ const TeacherDashboard = () => {
 
       if (noticeRes.status === "fulfilled") {
         setNotices(noticeRes.value.data.notices || []);
+      }
+      if (classRes && classRes.status === "fulfilled") {
+        setTodayClasses(classRes.value.data.classes || []);
       }
     } catch (err) {
       console.error("Dashboard fetch error:", err);
@@ -1463,7 +1510,8 @@ const TeacherDashboard = () => {
   ];
 
   // ── Filtered students ──────────────────────────────────────────────────────
-  const filtered = students
+  const filtered = [...students]
+    .sort((a, b) => (a.attendance || 0) - (b.attendance || 0))
     .filter((s) => {
       const q = searchQuery.toLowerCase();
       return (
@@ -1571,6 +1619,58 @@ const TeacherDashboard = () => {
           <QuickAction icon={Icons.Notice}     label="Post Notice"     color="border-amber-300  text-amber-600  hover:bg-amber-50"    onClick={() => setModal("notice")}     />
           <QuickAction icon={Icons.Trophy}     label="Top Performers"  color="border-blue-300   text-blue-600   hover:bg-blue-50"     onClick={() => setModal("toppers")}    />
         </div>
+      </div>
+
+      {/* ── Today's Classes ── */}
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+          <h2 className="text-lg font-bold text-gray-700">🗓 Today's Classes</h2>
+          <span className="text-xs text-slate-400">{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"short"})}</span>
+        </div>
+        {todayClasses.length === 0 ? (
+          <div className="p-8 text-center text-slate-400">
+            <p className="text-3xl mb-2">📭</p>
+            <p className="text-sm">No classes assigned today</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {todayClasses.map((cls, i) => {
+              const now = new Date();
+              const [sh, sm] = cls.startTime.split(":").map(Number);
+              const [eh, em] = cls.endTime.split(":").map(Number);
+              const start  = new Date(); start.setHours(sh, sm, 0);
+              const end    = new Date(); end.setHours(eh, em, 0);
+              const isNow  = now >= start && now <= end;
+              const isDone = now > end;
+              return (
+                <div key={i} className={`flex items-center gap-4 px-5 py-4 transition hover:bg-slate-50 ${isNow ? "bg-blue-50" : ""}`}>
+                  <div className={`w-1.5 h-12 rounded-full shrink-0 ${isNow ? "bg-blue-500" : isDone ? "bg-slate-200" : "bg-emerald-400"}`} />
+                  <div className="w-24 shrink-0">
+                    <p className={`text-sm font-bold ${isNow ? "text-blue-600" : "text-slate-600"}`}>
+                      {cls.startTime} – {cls.endTime}
+                    </p>
+                    {isNow  && <span className="text-xs bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded font-semibold">● Live</span>}
+                    {isDone && <span className="text-xs text-slate-400">Done</span>}
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-slate-800">{cls.subject}</p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-semibold">{cls.branch}</span>
+                      {cls.course && <span className="ml-2">{cls.course.name} · {cls.course.code}</span>}
+                      {cls.room && <span className="ml-2">Room {cls.room}</span>}
+                    </p>
+                  </div>
+                  {isNow && (
+                    <button onClick={() => setModal("attendance")}
+                      className="bg-blue-600 text-white text-xs px-3 py-1.5 rounded-xl font-semibold hover:bg-blue-700 transition shrink-0">
+                      Mark Attendance
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Charts Row ── */}
