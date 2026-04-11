@@ -1,4 +1,5 @@
  import React, { useEffect, useState } from "react";
+ import { useCallback } from "react";
 import API from "../../api/axios";
 
 const BRANCHES   = ["CSE", "ECE", "ME", "CE", "EE"];
@@ -30,9 +31,28 @@ const SlotRow = ({ slot, index, teachers, courses, onChange, onRemove }) => (
       {TIME_SLOTS.map((t) => <option key={t} value={t}>{fmt12(t)}</option>)}
     </select>
 
-    <input value={slot.subject} onChange={(e) => onChange(index, "subject", e.target.value)}
+    {/* <input value={slot.subject} onChange={(e) => onChange(index, "subject", e.target.value)}
       placeholder="Subject name"
-      className="col-span-3 border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-slate-400" />
+      className="col-span-3 border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-slate-400" /> */}
+<select
+  value={slot.course}
+  onChange={(e) => {
+    const selectedCourse = courses.find(c => c._id === e.target.value);
+
+    onChange(index, "course", e.target.value);
+    onChange(index, "subject", selectedCourse?.name || "");
+  }}
+  className="col-span-3 border border-slate-200 rounded-lg px-2 py-1.5 text-xs"
+>
+  <option value="">Select Course</option>
+  {courses.map((c) => (
+    <option key={c._id} value={c._id}>
+      {c.name} ({c.code})
+    </option>
+  ))}
+</select>
+
+
 
     <select value={slot.teacher} onChange={(e) => onChange(index, "teacher", e.target.value)}
       className="col-span-3 border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-slate-400">
@@ -129,16 +149,28 @@ const AdminRoutine = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
-  const fetchRoutines = async () => {
-    try {
-      const params = new URLSearchParams();
-      if (filterDate)   params.append("date", filterDate);
-      if (filterBranch) params.append("branch", filterBranch);
-      const res = await API.get(`/routines/all?${params}`);
-      setRoutines(res.data.routines || []);
-    } catch (e) { console.error(e); }
-  };
+//   const fetchRoutines = async () => {
+//     try {
+//       const params = new URLSearchParams();
+//       if (filterDate)   params.append("date", filterDate);
+//       if (filterBranch) params.append("branch", filterBranch);
+//       const res = await API.get(`/routines/all?${params}`);
+//       setRoutines(res.data.routines || []);
+//     } catch (e) { console.error(e); }
+//   };
 
+const fetchRoutines = useCallback(async () => {
+  try {
+    const params = new URLSearchParams();
+    if (filterDate) params.append("date", filterDate);
+    if (filterBranch) params.append("branch", filterBranch);
+
+    const res = await API.get(`/routines/all?${params}`);
+    setRoutines(res.data.routines || []);
+  } catch (e) {
+    console.error(e);
+  }
+}, [filterDate, filterBranch]);
   useEffect(() => {
     Promise.all([
       API.get("/admin/teachers").then((r) => setTeachers(r.data || [])),
@@ -146,7 +178,10 @@ const AdminRoutine = () => {
     ]).finally(() => setLoading(false));
   }, []);
 
-  useEffect(() => { fetchRoutines(); }, [filterDate, filterBranch]);
+//   useEffect(() => { fetchRoutines(); }, [filterDate, filterBranch]);
+useEffect(() => {
+  fetchRoutines();
+}, [fetchRoutines]);
 
   const addSlot = () => {
     const lastSlot = form.slots[form.slots.length - 1];
