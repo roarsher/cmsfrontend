@@ -156,7 +156,7 @@ function Home() {
   useEffect(() => {
     const fetchNotices = async () => {
       try {
-        const res = await API.get("/admin/notices");
+        const res = await API.get("/admin/public/notices");
         setNotices(res.data);
       } catch (error) {
         console.error("Failed to fetch notices", error);
