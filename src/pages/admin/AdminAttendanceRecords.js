@@ -219,12 +219,12 @@ const AdminAttendanceRecords = () => {
   const [filterDept, setFilterDept]   = useState("");
   const [filterDate, setFilterDate]   = useState("");
   const [search, setSearch]           = useState("");
-  const [toast, setToast]             = useState(null);
+  //const [toast, setToast]             = useState(null);
 
-  const showToast = (msg, type = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  // const showToast = (msg, type = "success") => {
+  //   setToast({ msg, type });
+  //   setTimeout(() => setToast(null), 3000);
+  // };
 
   useEffect(() => {
     API.get("/live-attendance/all-sessions")
@@ -257,12 +257,12 @@ const AdminAttendanceRecords = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-6 space-y-6">
 
-      {/* Toast */}
+      {/* Toast
       {toast && (
         <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>
           {toast.msg}
         </div>
-      )}
+      )} */}
 
       {/* Modal */}
       {selected && <SessionModal session={selected} onClose={() => setSelected(null)} />}

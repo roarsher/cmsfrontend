@@ -1,6 +1,6 @@
-import React, { useEffect, useState, useContext, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import API from "../../api/axios";
-import { AuthContext } from "../../context/AuthContext";
+//import { AuthContext } from "../../context/AuthContext";
 
 const EXTERNAL_RESULT_URL = "https://beu-bih.ac.in/result-one";
 
@@ -139,7 +139,7 @@ const ExternalResult = () => {
 // MAIN PAGE
 // ─────────────────────────────────────────────────────────────────────────────
 const StudentResults = () => {
-  const { user } = useContext(AuthContext);
+  //const { user } = useContext(AuthContext);
   const [marks, setMarks]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab]         = useState("internal"); // "internal" | "external"

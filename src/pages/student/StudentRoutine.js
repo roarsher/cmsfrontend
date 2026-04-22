@@ -33,7 +33,7 @@ const StudentRoutine = () => {
   const [routine, setRoutine]   = useState(null);
   const [loading, setLoading]   = useState(true);
   const [now, setNow]           = useState(new Date());
-  const [selectedDate, setSelectedDate] = useState(
+  const [selectedDate] = useState(
     new Date().toISOString().split("T")[0]
   );
 
