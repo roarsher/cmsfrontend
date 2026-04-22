@@ -321,7 +321,7 @@ const AiHelpdesk = () => {
     setIsLoading(true);
 
     try {
-      const res = await API.post("/ai/chat", {
+      const res = await API.post("/api/ai/chat", {
         message: msg,
         userId:  user?._id || null,
         role:    user?.role || null,
