@@ -67,7 +67,7 @@ const Footer = () => {
 
   return (
     // <footer className="border-t bg-richblack-900/80 py-8">
-     <footer class="border-t bg-gray-200 dark:bg-gray-900/50 py-6">
+     <footer className="border-t bg-gray-200 dark:bg-gray-900/50 py-6">
       <div className="max-w-5xl mx-auto px-4 flex flex-col items-center gap-0">
 
         <h3 className="text-sm text-black tracking-wide">
