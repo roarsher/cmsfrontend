@@ -1,56 +1,588 @@
- import React, { useEffect, useState, useContext, useRef } from "react";
+//  import React, { useEffect, useState, useContext, useRef } from "react";
+// import API from "../../api/axios";
+// import { AuthContext } from "../../context/AuthContext";
+// import { io } from "socket.io-client";
+
+// const SOCKET_URL = "http://localhost:5000";
+
+// const LiveAttendance = () => {
+//   const { user } = useContext(AuthContext);
+//   const [courses, setCourses]         = useState([]);
+//   const [selectedCourse, setSelectedCourse] = useState("");
+//   const [duration, setDuration]       = useState(60);
+//   const [radius, setRadius]           = useState(100);
+//   const [session, setSession]         = useState(null);
+//   const [submissions, setSubmissions] = useState([]);
+//   const [report, setReport]             = useState(null);
+//   const [timeLeft, setTimeLeft]       = useState(0);
+//   const [gps, setGps]                 = useState(null);
+//   const [gpsError, setGpsError]       = useState("");
+//   const [loading, setLoading]         = useState(false);
+//   const [toast, setToast]             = useState(null);
+//   const socketRef = useRef(null);
+//   const timerRef  = useRef(null);
+
+//   const showToast = (msg, type = "success") => {
+//     setToast({ msg, type });
+//     setTimeout(() => setToast(null), 3000);
+//   };
+
+//   // ── Fetch courses ──────────────────────────────────────────────────────────
+//   useEffect(() => {
+//     API.get("/teacher/courses").then((res) => {
+//       setCourses(res.data.courses || []);
+//       if (res.data.courses?.length > 0) setSelectedCourse(res.data.courses[0]._id);
+//     });
+//   }, []);
+
+//   // ── Get GPS on load ────────────────────────────────────────────────────────
+//   useEffect(() => {
+//     if (!navigator.geolocation) { setGpsError("GPS not supported"); return; }
+//     navigator.geolocation.getCurrentPosition(
+//       (pos) => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+//       () => setGpsError("GPS access denied. Please allow location access.")
+//     );
+//   }, []);
+
+//   // ── Socket.io setup ────────────────────────────────────────────────────────
+//   useEffect(() => {
+//     const token = localStorage.getItem("token");
+//     socketRef.current = io(SOCKET_URL, { auth: { token } });
+
+//     socketRef.current.on("connect", () => {
+//       if (user?.department) socketRef.current.emit("join_dept", user.department);
+//     });
+
+//     socketRef.current.on("student_submitted", (data) => {
+//       setSubmissions((prev) => {
+//         if (prev.find((s) => s.studentId === data.studentId)) return prev;
+//         return [data, ...prev];
+//       });
+//     });
+
+//     socketRef.current.on("report_ready", async ({ sessionId }) => {
+//       try {
+//         const res = await API.get(`/live-attendance/session/${sessionId}`);
+//         if (res.data.session?.report?.generated) {
+//           setReport(res.data.session.report);
+//           setSession((s) => s ? { ...s, active: false } : null);
+//         }
+//       } catch (e) { console.error(e); }
+//     });
+
+//     return () => { socketRef.current?.disconnect(); };
+//   }, [user]);
+
+//   // ── Countdown timer ────────────────────────────────────────────────────────
+//   useEffect(() => {
+//     if (!session) return;
+//     const tick = () => {
+//       const left = Math.max(0, Math.round((new Date(session.expiresAt) - Date.now()) / 1000));
+//       setTimeLeft(left);
+//       if (left === 0) { clearInterval(timerRef.current); setSession((s) => s ? { ...s, active: false } : null); }
+//     };
+//     tick();
+//     timerRef.current = setInterval(tick, 1000);
+//     return () => clearInterval(timerRef.current);
+//   }, [session]);
+
+//   // ── Join session room when session starts ──────────────────────────────────
+//   useEffect(() => {
+//     if (session?._id && socketRef.current) {
+//       socketRef.current.emit("join_session", session._id);
+//     }
+//   }, [session?._id]);
+
+//   const startSession = async () => {
+//     if (!gps) { showToast("GPS not available. Allow location access first.", "error"); return; }
+//     if (!selectedCourse) { showToast("Select a course", "error"); return; }
+//     setLoading(true);
+//     try {
+//       const res = await API.post("/live-attendance/start", {
+//         courseId: selectedCourse,
+//         duration: Number(duration),
+//         lat: gps.lat, lng: gps.lng,
+//         radius: Number(radius),
+//       });
+//       setSession(res.data.session);
+//       setSubmissions([]);
+//       setReport(null);
+//       showToast("Session started! Students can now mark attendance.");
+//     } catch (e) {
+//       showToast(e.response?.data?.message || "Failed to start", "error");
+//     } finally { setLoading(false); }
+//   };
+
+//   const stopSession = async () => {
+//     if (!session) return;
+//     try {
+//       const res = await API.put(`/live-attendance/stop/${session._id}`);
+//       setSession((s) => ({ ...s, active: false }));
+//       clearInterval(timerRef.current);
+//       if (res.data.report) setReport(res.data.report);
+//       showToast("Session stopped. Report generated!");
+//     } catch (e) { showToast("Failed to stop", "error"); }
+//   };
+
+//   const refreshSession = async (sid) => {
+//     const id = sid || session?._id;
+//     if (!id) return;
+//     try {
+//       const res = await API.get(`/live-attendance/session/${id}`);
+//       const subs = res.data.session?.submissions || [];
+//       setSubmissions(subs);
+//     } catch (e) { console.error(e); }
+//   };
+
+//   // ✅ Auto-poll every 3 seconds when session is active
+//   useEffect(() => {
+//     if (!session?._id || !session?.active) return;
+//     const id = session._id;
+//     const interval = setInterval(async () => {
+//       try {
+//         const res = await API.get(`/live-attendance/session/${id}`);
+//         setSubmissions(res.data.session?.submissions || []);
+//       } catch (e) { console.error(e); }
+//     }, 3000);
+//     return () => clearInterval(interval);
+//   // eslint-disable-next-line react-hooks/exhaustive-deps
+//   }, [session?._id, session?.active]);
+
+//   // ✅ PDF Download — uses report if available, else submissions
+//   const downloadPDF = () => {
+//     const entries = report?.entries || [];
+//     const present = entries.length > 0
+//       ? entries.filter(e => e.status === "Present")
+//       : submissions.filter((s) => s.status === "Present");
+//     const date    = new Date().toLocaleDateString("en-IN", { day:"numeric", month:"long", year:"numeric" });
+//     // Full sheet with ALL students if report available
+//     const allEntries = report?.entries || present.map(s => ({ ...s, status: "Present" }));
+//     const rows = allEntries.map((s, i) => {
+//       const color = s.status === "Present" ? "#10b981" : s.status === "Absent" ? "#ef4444" : "#f59e0b";
+//       return `<tr style="background:${i%2===0?"#f8fafc":"#fff"}">
+//         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0">${i+1}</td>
+//         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-weight:600">${s.name}</td>
+//         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-family:monospace">${s.rollNumber}</td>
+//         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:${color};font-weight:700">${s.status === "Present" ? "✓ Present" : s.status === "Absent" ? "✗ Absent" : "⚠ Rejected"}</td>
+//         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">${s.gpsValid === true ? "✓ GPS" : s.gpsValid === false ? "✗ GPS" : "—"}</td>
+//         <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">${s.distance != null ? s.distance+"m" : "—"}</td>
+//       </tr>`;
+//     }).join("");
+
+//     const html = `<html><head><title>Attendance Report</title>
+//     <style>
+//       body{font-family:Arial,sans-serif;padding:32px;color:#1e293b}
+//       h1{margin:0;font-size:20px} .sub{color:#64748b;font-size:13px;margin:4px 0}
+//       .badge{background:#10b981;color:white;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold}
+//       table{width:100%;border-collapse:collapse;margin-top:20px}
+//       thead{background:#1e293b;color:white}
+//       th{padding:12px 16px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+//       .footer{margin-top:24px;text-align:center;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;padding-top:16px}
+//       .stats{display:flex;gap:16px;margin:16px 0}
+//       .stat{background:#f8fafc;border-radius:8px;padding:12px 20px;text-align:center}
+//       .stat h2{margin:0;font-size:24px;color:#1e293b} .stat p{margin:4px 0 0;font-size:12px;color:#64748b}
+//     </style></head><body>
+//     <h1>BCE BHAGALPUR — Attendance Report</h1>
+//     <p class="sub">Course: <strong>${selectedCourseName}</strong> &nbsp;|&nbsp; Date: ${date}</p>
+//     <p class="sub">Department: <strong>${user?.department || ""}</strong> &nbsp;|&nbsp; Teacher: <strong>${user?.name || ""}</strong></p>
+//     <div class="stats">
+//       <div class="stat"><h2>${report?.totalStudents || submissions.length}</h2><p>Total Students</p></div>
+//       <div class="stat" style="border-left:3px solid #10b981"><h2 style="color:#10b981">${report?.presentCount ?? present.length}</h2><p>Present</p></div>
+//       <div class="stat" style="border-left:3px solid #ef4444"><h2 style="color:#ef4444">${report?.absentCount ?? 0}</h2><p>Absent</p></div>
+//       <div class="stat" style="border-left:3px solid #f59e0b"><h2 style="color:#f59e0b">${report?.rejectedCount ?? submissions.filter(s=>s.status==="Rejected").length}</h2><p>Rejected</p></div>
+//     </div>
+//     <table>
+//       <thead><tr><th>#</th><th>Name</th><th>Roll No.</th><th>Status</th><th>GPS</th><th>Distance</th></tr></thead>
+//       <tbody>${rows || "<tr><td colspan='5' style='text-align:center;padding:20px;color:#94a3b8'>No students marked present</td></tr>"}</tbody>
+//     </table>
+//     <div class="footer">
+//       <p>Generated on ${new Date().toLocaleString("en-IN")} &nbsp;·&nbsp; BCE Bhagalpur ERP</p>
+//       <p>This is a computer-generated attendance report.</p>
+//     </div>
+//     </body></html>`;
+
+//     const win = window.open("", "_blank");
+//     win.document.write(html);
+//     win.document.close();
+//     win.print();
+//   };
+
+//   const presentCount  = submissions.filter((s) => s.status === "Present").length;
+//   const rejectedCount = submissions.filter((s) => s.status === "Rejected").length;
+//   const timerColor    = timeLeft > 30 ? "text-emerald-600" : timeLeft > 10 ? "text-amber-500" : "text-red-600";
+//   const selectedCourseName = courses.find((c) => c._id === selectedCourse)?.name || "";
+
+//   return (
+//     <div className="min-h-screen bg-slate-50 p-6 space-y-6">
+
+//       {/* Toast */}
+//       {toast && (
+//         <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>
+//           {toast.msg}
+//         </div>
+//       )}
+
+//       {/* Header */}
+//       <div>
+//         <h1 className="text-3xl font-black text-slate-800">📡 Live Attendance</h1>
+//         <p className="text-slate-400 text-sm mt-1">Start a session — students solve a number challenge + GPS verification</p>
+//       </div>
+
+//       {/* GPS Status */}
+//       <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold ${gps ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+//         <span className="text-lg">{gps ? "📍" : "⚠️"}</span>
+//         {gps
+//           ? `GPS Ready — Lat: ${gps.lat.toFixed(5)}, Lng: ${gps.lng.toFixed(5)}`
+//           : gpsError || "Getting GPS location..."}
+//       </div>
+
+//       {/* ── FULL REPORT (shown after session ends) ── */}
+//       {!session?.active && report?.generated && (
+//         <div className="space-y-4">
+//           {/* Report header */}
+//           <div className="bg-slate-800 text-white rounded-2xl p-6">
+//             <div className="flex items-center justify-between mb-4">
+//               <div>
+//                 <p className="text-slate-400 text-xs uppercase font-semibold">Session Report</p>
+//                 <p className="font-bold text-lg mt-0.5">{selectedCourseName}</p>
+//                 <p className="text-slate-400 text-xs mt-1">{new Date(report.generatedAt).toLocaleString("en-IN")}</p>
+//               </div>
+//               <button onClick={downloadPDF}
+//                 className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+//                 📄 Download PDF
+//               </button>
+//             </div>
+//             {/* Stats */}
+//             <div className="grid grid-cols-4 gap-3">
+//               {[
+//                 { label: "Total",    value: report.totalStudents, color: "text-white",         bg: "bg-slate-700" },
+//                 { label: "Present",  value: report.presentCount,  color: "text-emerald-400",   bg: "bg-emerald-900/40" },
+//                 { label: "Absent",   value: report.absentCount,   color: "text-red-400",       bg: "bg-red-900/40" },
+//                 { label: "Rejected", value: report.rejectedCount, color: "text-amber-400",     bg: "bg-amber-900/40" },
+//               ].map((s) => (
+//                 <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center`}>
+//                   <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
+//                   <p className="text-slate-400 text-xs mt-1">{s.label}</p>
+//                 </div>
+//               ))}
+//             </div>
+//             {/* Attendance % bar */}
+//             <div className="mt-4">
+//               <div className="flex justify-between text-xs text-slate-400 mb-1">
+//                 <span>Attendance Rate</span>
+//                 <span>{report.totalStudents > 0 ? Math.round((report.presentCount / report.totalStudents) * 100) : 0}%</span>
+//               </div>
+//               <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+//                 <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${report.totalStudents > 0 ? (report.presentCount / report.totalStudents) * 100 : 0}%` }} />
+//               </div>
+//             </div>
+//           </div>
+
+//           {/* Full student table */}
+//           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+//             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+//               <h2 className="font-bold text-slate-700">📋 Full Attendance Sheet</h2>
+//               <div className="flex gap-2 text-xs">
+//                 <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">✓ {report.presentCount} Present</span>
+//                 <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full font-semibold">✗ {report.absentCount} Absent</span>
+//                 <span className="bg-amber-100 text-amber-600 px-2 py-1 rounded-full font-semibold">⚠ {report.rejectedCount} Rejected</span>
+//               </div>
+//             </div>
+//             <div className="overflow-x-auto max-h-96 overflow-y-auto">
+//               <table className="w-full text-sm">
+//                 <thead className="bg-slate-50 text-slate-500 uppercase text-xs sticky top-0">
+//                   <tr>
+//                     <th className="px-4 py-3 text-left">#</th>
+//                     <th className="px-4 py-3 text-left">Name</th>
+//                     <th className="px-4 py-3 text-left">Roll No.</th>
+//                     <th className="px-4 py-3 text-center">Status</th>
+//                     <th className="px-4 py-3 text-center">GPS</th>
+//                     <th className="px-4 py-3 text-center">Distance</th>
+//                   </tr>
+//                 </thead>
+//                 <tbody className="divide-y divide-slate-50">
+//                   {(report.entries || []).map((e, i) => (
+//                     <tr key={i} className={`hover:bg-slate-50 transition ${e.status === "Present" ? "bg-emerald-50/20" : e.status === "Absent" ? "" : "bg-amber-50/20"}`}>
+//                       <td className="px-4 py-3 text-slate-400 text-xs">{i + 1}</td>
+//                       <td className="px-4 py-3 font-semibold text-slate-800">{e.name}</td>
+//                       <td className="px-4 py-3 font-mono text-xs text-slate-600">{e.rollNumber}</td>
+//                       <td className="px-4 py-3 text-center">
+//                         <span className={`text-xs px-2 py-1 rounded-full font-bold ${
+//                           e.status === "Present"  ? "bg-emerald-100 text-emerald-700" :
+//                           e.status === "Absent"   ? "bg-red-100 text-red-600" :
+//                                                     "bg-amber-100 text-amber-600"
+//                         }`}>
+//                           {e.status === "Present" ? "✓ Present" : e.status === "Absent" ? "✗ Absent" : "⚠ Rejected"}
+//                         </span>
+//                       </td>
+//                       <td className="px-4 py-3 text-center text-xs">
+//                         {e.gpsValid === true ? <span className="text-emerald-600 font-semibold">✓</span> :
+//                          e.gpsValid === false ? <span className="text-red-500 font-semibold">✗</span> : "—"}
+//                       </td>
+//                       <td className="px-4 py-3 text-center text-xs text-slate-500">
+//                         {e.distance != null ? `${e.distance}m` : "—"}
+//                       </td>
+//                     </tr>
+//                   ))}
+//                 </tbody>
+//               </table>
+//             </div>
+//           </div>
+
+//           <button onClick={() => { setReport(null); setSession(null); setSubmissions([]); }}
+//             className="w-full border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+//             + Start New Session
+//           </button>
+//         </div>
+//       )}
+
+//       {!session?.active && !report?.generated && (
+//         /* ── START SESSION FORM ── */
+//         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">
+//           <h2 className="text-lg font-bold text-slate-700">⚙️ Configure Session</h2>
+
+//           <div className="space-y-1">
+//             <label className="text-xs font-semibold text-slate-500 uppercase">Course / Subject</label>
+//             <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}
+//               className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-slate-400">
+//               {courses.map((c) => <option key={c._id} value={c._id}>{c.name} ({c.code})</option>)}
+//             </select>
+//           </div>
+
+//           <div className="grid grid-cols-2 gap-4">
+//             <div className="space-y-1">
+//               <label className="text-xs font-semibold text-slate-500 uppercase">Duration (seconds)</label>
+//               <select value={duration} onChange={(e) => setDuration(e.target.value)}
+//                 className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none">
+//                 <option value={30}>30 seconds</option>
+//                 <option value={60}>60 seconds</option>
+//                 <option value={90}>90 seconds</option>
+//                 <option value={120}>2 minutes</option>
+//               </select>
+//             </div>
+//             <div className="space-y-1">
+//               <label className="text-xs font-semibold text-slate-500 uppercase">GPS Radius (meters)</label>
+//               <select value={radius} onChange={(e) => setRadius(e.target.value)}
+//                 className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none">
+//                 <option value={50}>50m (strict)</option>
+//                 <option value={100}>100m (normal)</option>
+//                 <option value={200}>200m (relaxed)</option>
+//                 <option value={500}>500m (building)</option>
+//               </select>
+//             </div>
+//           </div>
+
+//           <button onClick={startSession} disabled={loading || !gps}
+//             className="w-full bg-slate-800 text-white py-3 rounded-2xl font-bold text-base hover:bg-slate-700 disabled:opacity-50 transition flex items-center justify-center gap-2">
+//             {loading ? "Starting..." : "🚀 Start Live Session"}
+//           </button>
+//         </div>
+//       )}
+
+//       {session?.active && (
+//         /* ── ACTIVE SESSION ── */
+//         <div className="space-y-4">
+
+//           {/* Session Info Card */}
+//           <div className="bg-slate-800 text-white rounded-2xl p-6">
+//             <div className="flex items-center justify-between mb-4">
+//               <div>
+//                 <p className="text-slate-400 text-xs uppercase font-semibold">Active Session</p>
+//                 <p className="font-bold text-lg mt-0.5">{selectedCourseName}</p>
+//               </div>
+//               <div className="text-right">
+//                 <p className={`text-4xl font-black tabular-nums ${timerColor}`}>{timeLeft}s</p>
+//                 <p className="text-slate-400 text-xs">remaining</p>
+//               </div>
+//             </div>
+
+//             {/* Challenge numbers */}
+//             <div>
+//               <p className="text-slate-400 text-xs uppercase font-semibold mb-3">Challenge — Students must click in this order:</p>
+//               <div className="flex gap-3">
+//                 {session.challenge?.map((n, i) => (
+//                   <div key={i} className="w-14 h-14 rounded-2xl bg-yellow-400 text-slate-900 flex items-center justify-center text-2xl font-black shadow-lg">
+//                     {n}
+//                   </div>
+//                 ))}
+//                 <div className="flex items-center gap-1 ml-2">
+//                   {session.challenge?.map((n, i) => (
+//                     <span key={i} className="text-slate-300 font-bold text-lg">
+//                       {n}{i < session.challenge.length - 1 ? " →" : ""}
+//                     </span>
+//                   ))}
+//                 </div>
+//               </div>
+//             </div>
+
+//             {/* Timer bar */}
+//             <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+//               <div
+//                 className="h-full rounded-full transition-all bg-yellow-400"
+//                 style={{ width: `${(timeLeft / duration) * 100}%` }}
+//               />
+//             </div>
+
+//             <div className="flex gap-2 mt-4">
+//               <button onClick={stopSession} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-xl font-semibold text-sm transition">
+//                 ⏹ Stop Session
+//               </button>
+//               <button onClick={() => refreshSession()} className="px-4 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-semibold text-sm transition">
+//                 🔄 Refresh
+//               </button>
+//               <button onClick={downloadPDF} className="px-4 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl font-semibold text-sm transition">
+//                 📄 PDF
+//               </button>
+//             </div>
+//           </div>
+
+//           {/* PDF Download when session ends */}
+//           {!session?.active && submissions.length > 0 && (
+//             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between">
+//               <div>
+//                 <p className="font-bold text-slate-800">Session Ended</p>
+//                 <p className="text-sm text-slate-500 mt-0.5">{submissions.filter(s=>s.status==="Present").length} students marked present</p>
+//               </div>
+//               <button onClick={downloadPDF}
+//                 className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-700 transition flex items-center gap-2">
+//                 📄 Download Attendance PDF
+//               </button>
+//             </div>
+//           )}
+
+//           {/* Live Stats */}
+//           <div className="grid grid-cols-3 gap-3">
+//             <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100">
+//               <p className="text-3xl font-black text-emerald-600">{presentCount}</p>
+//               <p className="text-xs text-slate-400 font-semibold mt-1">Present</p>
+//             </div>
+//             <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100">
+//               <p className="text-3xl font-black text-red-500">{rejectedCount}</p>
+//               <p className="text-xs text-slate-400 font-semibold mt-1">Rejected</p>
+//             </div>
+//             <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100">
+//               <p className="text-3xl font-black text-slate-700">{submissions.length}</p>
+//               <p className="text-xs text-slate-400 font-semibold mt-1">Submitted</p>
+//             </div>
+//           </div>
+
+//           {/* Submissions list */}
+//           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+//             <div className="p-5 border-b border-slate-100">
+//               <h2 className="font-bold text-slate-700">📋 Live Submissions</h2>
+//             </div>
+//             <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
+//               {submissions.length === 0 && (
+//                 <p className="text-center py-10 text-slate-400 text-sm">Waiting for students to submit...</p>
+//               )}
+//               {submissions.map((s, i) => (
+//                 <div key={i} className={`flex items-center justify-between px-5 py-3 ${s.status === "Present" ? "bg-emerald-50/40" : "bg-red-50/30"}`}>
+//                   <div className="flex items-center gap-3">
+//                     <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-black shrink-0 ${s.status === "Present" ? "bg-emerald-500" : "bg-red-500"}`}>
+//                       {s.status === "Present" ? "✓" : "✗"}
+//                     </div>
+//                     <div>
+//                       <p className="font-bold text-slate-800 text-sm">{s.name || s.student?.name || "—"}</p>
+//                       <p className="text-xs text-slate-400 font-mono">{s.rollNumber || s.student?.rollNumber || "—"}</p>
+//                     </div>
+//                   </div>
+//                   <div className="text-right space-y-1">
+//                     <div className="flex gap-1 justify-end">
+//                       <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${s.correct ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+//                         {s.correct ? "✓ Nums" : "✗ Nums"}
+//                       </span>
+//                       <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${s.gpsValid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+//                         {s.gpsValid ? "✓ GPS" : `✗ GPS ${s.distance ? `(${s.distance}m)` : ""}`}
+//                       </span>
+//                     </div>
+//                     <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${s.status === "Present" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
+//                       {s.status}
+//                     </span>
+//                   </div>
+//                 </div>
+//               ))}
+//             </div>
+//           </div>
+//         </div>
+//       )}
+//     </div>
+//   );
+// };
+
+// export default LiveAttendance;
+
+
+import React, { useEffect, useState, useContext, useRef } from "react";
 import API from "../../api/axios";
 import { AuthContext } from "../../context/AuthContext";
 import { io } from "socket.io-client";
 
-const SOCKET_URL = "http://localhost:5000";
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:5000";
 
 const LiveAttendance = () => {
   const { user } = useContext(AuthContext);
-  const [courses, setCourses]         = useState([]);
+
+  const [courses, setCourses]             = useState([]);
   const [selectedCourse, setSelectedCourse] = useState("");
-  const [duration, setDuration]       = useState(60);
-  const [radius, setRadius]           = useState(100);
-  const [session, setSession]         = useState(null);
-  const [submissions, setSubmissions] = useState([]);
-  const [report, setReport]             = useState(null);
-  const [timeLeft, setTimeLeft]       = useState(0);
-  const [gps, setGps]                 = useState(null);
-  const [gpsError, setGpsError]       = useState("");
-  const [loading, setLoading]         = useState(false);
-  const [toast, setToast]             = useState(null);
+  const [semester, setSemester]           = useState("");   // ← NEW: required by backend
+  const [duration, setDuration]           = useState(60);
+  const [radius, setRadius]               = useState(100);
+
+  const [session, setSession]             = useState(null);
+  const [submissions, setSubmissions]     = useState([]);
+  const [report, setReport]               = useState(null);
+  const [timeLeft, setTimeLeft]           = useState(0);
+
+  const [gps, setGps]                     = useState(null);
+  const [gpsError, setGpsError]           = useState("");
+  const [loading, setLoading]             = useState(false);
+  const [toast, setToast]                 = useState(null);
+
   const socketRef = useRef(null);
   const timerRef  = useRef(null);
 
   const showToast = (msg, type = "success") => {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 3000);
+    setTimeout(() => setToast(null), 3500);
   };
 
-  // ── Fetch courses ──────────────────────────────────────────────────────────
+  // ── Fetch teacher's courses ────────────────────────────────────────────────
   useEffect(() => {
     API.get("/teacher/courses").then((res) => {
-      setCourses(res.data.courses || []);
-      if (res.data.courses?.length > 0) setSelectedCourse(res.data.courses[0]._id);
-    });
+      const list = res.data.courses || [];
+      setCourses(list);
+      if (list.length > 0) {
+        setSelectedCourse(list[0]._id);
+        setSemester(String(list[0].semester));   // ← auto-fill from first course
+      }
+    }).catch(console.error);
   }, []);
 
-  // ── Get GPS on load ────────────────────────────────────────────────────────
+  // ── Auto-fill semester whenever selected course changes ────────────────────
+  const handleCourseChange = (courseId) => {
+    setSelectedCourse(courseId);
+    const course = courses.find((c) => c._id === courseId);
+    if (course?.semester) setSemester(String(course.semester));
+  };
+
+  // ── Get GPS ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!navigator.geolocation) { setGpsError("GPS not supported"); return; }
+    if (!navigator.geolocation) { setGpsError("GPS not supported by this browser"); return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => setGps({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
-      () => setGpsError("GPS access denied. Please allow location access.")
+      () => setGpsError("GPS access denied — please allow location access.")
     );
   }, []);
 
-  // ── Socket.io setup ────────────────────────────────────────────────────────
+  // ── Socket.io ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const token = localStorage.getItem("token");
     socketRef.current = io(SOCKET_URL, { auth: { token } });
 
     socketRef.current.on("connect", () => {
-      if (user?.department) socketRef.current.emit("join_dept", user.department);
+      // Join the department room(s) so teacher hears session events
+      const depts = user?.departments || (user?.department ? [user.department] : []);
+      depts.forEach((d) => socketRef.current.emit("join_dept", d));
     });
 
     socketRef.current.on("student_submitted", (data) => {
@@ -65,7 +597,7 @@ const LiveAttendance = () => {
         const res = await API.get(`/live-attendance/session/${sessionId}`);
         if (res.data.session?.report?.generated) {
           setReport(res.data.session.report);
-          setSession((s) => s ? { ...s, active: false } : null);
+          setSession((s) => (s ? { ...s, active: false } : null));
         }
       } catch (e) { console.error(e); }
     });
@@ -79,62 +611,24 @@ const LiveAttendance = () => {
     const tick = () => {
       const left = Math.max(0, Math.round((new Date(session.expiresAt) - Date.now()) / 1000));
       setTimeLeft(left);
-      if (left === 0) { clearInterval(timerRef.current); setSession((s) => s ? { ...s, active: false } : null); }
+      if (left === 0) {
+        clearInterval(timerRef.current);
+        setSession((s) => (s ? { ...s, active: false } : null));
+      }
     };
     tick();
     timerRef.current = setInterval(tick, 1000);
     return () => clearInterval(timerRef.current);
   }, [session]);
 
-  // ── Join session room when session starts ──────────────────────────────────
+  // ── Join session room ──────────────────────────────────────────────────────
   useEffect(() => {
     if (session?._id && socketRef.current) {
       socketRef.current.emit("join_session", session._id);
     }
   }, [session?._id]);
 
-  const startSession = async () => {
-    if (!gps) { showToast("GPS not available. Allow location access first.", "error"); return; }
-    if (!selectedCourse) { showToast("Select a course", "error"); return; }
-    setLoading(true);
-    try {
-      const res = await API.post("/live-attendance/start", {
-        courseId: selectedCourse,
-        duration: Number(duration),
-        lat: gps.lat, lng: gps.lng,
-        radius: Number(radius),
-      });
-      setSession(res.data.session);
-      setSubmissions([]);
-      setReport(null);
-      showToast("Session started! Students can now mark attendance.");
-    } catch (e) {
-      showToast(e.response?.data?.message || "Failed to start", "error");
-    } finally { setLoading(false); }
-  };
-
-  const stopSession = async () => {
-    if (!session) return;
-    try {
-      const res = await API.put(`/live-attendance/stop/${session._id}`);
-      setSession((s) => ({ ...s, active: false }));
-      clearInterval(timerRef.current);
-      if (res.data.report) setReport(res.data.report);
-      showToast("Session stopped. Report generated!");
-    } catch (e) { showToast("Failed to stop", "error"); }
-  };
-
-  const refreshSession = async (sid) => {
-    const id = sid || session?._id;
-    if (!id) return;
-    try {
-      const res = await API.get(`/live-attendance/session/${id}`);
-      const subs = res.data.session?.submissions || [];
-      setSubmissions(subs);
-    } catch (e) { console.error(e); }
-  };
-
-  // ✅ Auto-poll every 3 seconds when session is active
+  // ── Auto-poll live submissions every 3 s ──────────────────────────────────
   useEffect(() => {
     if (!session?._id || !session?.active) return;
     const id = session._id;
@@ -148,56 +642,135 @@ const LiveAttendance = () => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session?._id, session?.active]);
 
-  // ✅ PDF Download — uses report if available, else submissions
+  // ─────────────────────────────────────────────────────────────────────────
+  // START SESSION
+  // FIX: now sends `semester` which the backend requires
+  // ─────────────────────────────────────────────────────────────────────────
+  const startSession = async () => {
+    if (!gps)            return showToast("GPS not available — allow location access first.", "error");
+    if (!selectedCourse) return showToast("Select a course.", "error");
+    if (!semester)       return showToast("Semester could not be determined. Select a course first.", "error");
+
+    setLoading(true);
+    try {
+      const res = await API.post("/live-attendance/start", {
+        courseId: selectedCourse,
+        semester: Number(semester),       // ← THE FIX: was missing before
+        duration: Number(duration),
+        lat:      gps.lat,
+        lng:      gps.lng,
+        radius:   Number(radius),
+      });
+      setSession(res.data.session);
+      setSubmissions([]);
+      setReport(null);
+      showToast("Session started! Students can now mark attendance.");
+    } catch (e) {
+      showToast(e.response?.data?.message || "Failed to start session.", "error");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const stopSession = async () => {
+    if (!session) return;
+    try {
+      const res = await API.put(`/live-attendance/stop/${session._id}`);
+      setSession((s) => ({ ...s, active: false }));
+      clearInterval(timerRef.current);
+      if (res.data.report) setReport(res.data.report);
+      showToast("Session stopped — report generated!");
+    } catch (e) {
+      showToast("Failed to stop session.", "error");
+    }
+  };
+
+  const resetSession = () => {
+    setReport(null);
+    setSession(null);
+    setSubmissions([]);
+    clearInterval(timerRef.current);
+  };
+
+  // ── PDF (teacher-side, during or right after session) ─────────────────────
   const downloadPDF = () => {
-    const entries = report?.entries || [];
-    const present = entries.length > 0
-      ? entries.filter(e => e.status === "Present")
-      : submissions.filter((s) => s.status === "Present");
-    const date    = new Date().toLocaleDateString("en-IN", { day:"numeric", month:"long", year:"numeric" });
-    // Full sheet with ALL students if report available
-    const allEntries = report?.entries || present.map(s => ({ ...s, status: "Present" }));
+    const course = courses.find((c) => c._id === selectedCourse);
+    const allEntries = report?.entries ||
+      submissions.map((s) => ({ name: s.name, rollNumber: s.rollNumber, status: s.status, gpsValid: s.gpsValid, distance: s.distance }));
+
     const rows = allEntries.map((s, i) => {
       const color = s.status === "Present" ? "#10b981" : s.status === "Absent" ? "#ef4444" : "#f59e0b";
-      return `<tr style="background:${i%2===0?"#f8fafc":"#fff"}">
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0">${i+1}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-weight:600">${s.name}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-family:monospace">${s.rollNumber}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:${color};font-weight:700">${s.status === "Present" ? "✓ Present" : s.status === "Absent" ? "✗ Absent" : "⚠ Rejected"}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">${s.gpsValid === true ? "✓ GPS" : s.gpsValid === false ? "✗ GPS" : "—"}</td>
-        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">${s.distance != null ? s.distance+"m" : "—"}</td>
+      return `<tr style="background:${i % 2 === 0 ? "#f8fafc" : "#fff"}">
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0">${i + 1}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-weight:600">${s.name || "—"}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-family:monospace">${s.rollNumber || "—"}</td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;color:${color};font-weight:700">
+          ${s.status === "Present" ? "✓ Present" : s.status === "Absent" ? "✗ Absent" : "⚠ Rejected"}
+        </td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">
+          ${s.gpsValid === true ? "✓ GPS" : s.gpsValid === false ? "✗ GPS" : "—"}
+        </td>
+        <td style="padding:10px 16px;border-bottom:1px solid #e2e8f0;font-size:12px">
+          ${s.distance != null ? `${s.distance}m` : "—"}
+        </td>
       </tr>`;
     }).join("");
 
-    const html = `<html><head><title>Attendance Report</title>
+    const pct = report?.totalStudents > 0
+      ? Math.round((report.presentCount / report.totalStudents) * 100)
+      : 0;
+
+    const html = `<!DOCTYPE html><html><head><title>Attendance Report</title>
     <style>
-      body{font-family:Arial,sans-serif;padding:32px;color:#1e293b}
-      h1{margin:0;font-size:20px} .sub{color:#64748b;font-size:13px;margin:4px 0}
-      .badge{background:#10b981;color:white;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:bold}
-      table{width:100%;border-collapse:collapse;margin-top:20px}
+      *{margin:0;padding:0;box-sizing:border-box}
+      body{font-family:Arial,sans-serif;padding:36px;color:#1e293b}
+      .header{border-bottom:3px solid #1e293b;padding-bottom:18px;margin-bottom:20px}
+      .college{font-size:22px;font-weight:900}
+      .sub{color:#64748b;font-size:13px;margin-top:4px}
+      .course-banner{background:#f1f5f9;border-left:4px solid #3b82f6;border-radius:8px;padding:14px 18px;margin:16px 0;display:grid;grid-template-columns:1fr 1fr;gap:10px}
+      .course-banner .label{font-size:11px;color:#94a3b8;text-transform:uppercase;font-weight:600}
+      .course-banner .value{font-size:14px;font-weight:700;color:#1e293b;margin-top:2px}
+      .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}
+      .stat{border-radius:10px;padding:14px;text-align:center}
+      .stat h2{font-size:26px;font-weight:900;margin-bottom:4px}
+      .stat p{font-size:12px;color:#64748b;font-weight:600}
+      .pct-bar-bg{background:#e2e8f0;border-radius:999px;height:10px;overflow:hidden;margin-top:6px}
+      .pct-bar-fill{height:100%;border-radius:999px;background:#10b981}
+      table{width:100%;border-collapse:collapse;margin-top:16px}
       thead{background:#1e293b;color:white}
-      th{padding:12px 16px;text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.05em}
-      .footer{margin-top:24px;text-align:center;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;padding-top:16px}
-      .stats{display:flex;gap:16px;margin:16px 0}
-      .stat{background:#f8fafc;border-radius:8px;padding:12px 20px;text-align:center}
-      .stat h2{margin:0;font-size:24px;color:#1e293b} .stat p{margin:4px 0 0;font-size:12px;color:#64748b}
+      th{padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;font-weight:700}
+      .footer{margin-top:24px;text-align:center;color:#94a3b8;font-size:12px;border-top:1px solid #e2e8f0;padding-top:14px}
     </style></head><body>
-    <h1>BCE BHAGALPUR — Attendance Report</h1>
-    <p class="sub">Course: <strong>${selectedCourseName}</strong> &nbsp;|&nbsp; Date: ${date}</p>
-    <p class="sub">Department: <strong>${user?.department || ""}</strong> &nbsp;|&nbsp; Teacher: <strong>${user?.name || ""}</strong></p>
-    <div class="stats">
-      <div class="stat"><h2>${report?.totalStudents || submissions.length}</h2><p>Total Students</p></div>
-      <div class="stat" style="border-left:3px solid #10b981"><h2 style="color:#10b981">${report?.presentCount ?? present.length}</h2><p>Present</p></div>
-      <div class="stat" style="border-left:3px solid #ef4444"><h2 style="color:#ef4444">${report?.absentCount ?? 0}</h2><p>Absent</p></div>
-      <div class="stat" style="border-left:3px solid #f59e0b"><h2 style="color:#f59e0b">${report?.rejectedCount ?? submissions.filter(s=>s.status==="Rejected").length}</h2><p>Rejected</p></div>
+    <div class="header">
+      <div class="college">BCE BHAGALPUR</div>
+      <div class="sub">Bihar College of Engineering · Smart College ERP</div>
+      <div class="sub" style="margin-top:6px">Live Attendance Report</div>
     </div>
+    <div class="course-banner">
+      <div><div class="label">Course</div><div class="value">${course?.name || "—"} (${course?.code || ""})</div></div>
+      <div><div class="label">Department &amp; Semester</div><div class="value">${course?.department || "—"} · Semester ${course?.semester || semester || "—"}</div></div>
+      <div><div class="label">Teacher</div><div class="value">${user?.name || "—"}</div></div>
+      <div><div class="label">Date</div><div class="value">${new Date().toLocaleDateString("en-IN",{day:"numeric",month:"long",year:"numeric"})}</div></div>
+    </div>
+    <div class="stats">
+      <div class="stat" style="background:#f1f5f9"><h2 style="color:#1e293b">${report?.totalStudents ?? allEntries.length}</h2><p>Enrolled</p></div>
+      <div class="stat" style="background:#ecfdf5"><h2 style="color:#10b981">${report?.presentCount ?? allEntries.filter(e=>e.status==="Present").length}</h2><p>Present</p></div>
+      <div class="stat" style="background:#fef2f2"><h2 style="color:#ef4444">${report?.absentCount ?? 0}</h2><p>Absent</p></div>
+      <div class="stat" style="background:#fffbeb"><h2 style="color:#f59e0b">${report?.rejectedCount ?? allEntries.filter(e=>e.status==="Rejected").length}</h2><p>Rejected</p></div>
+    </div>
+    ${report ? `<div style="margin:12px 0">
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:4px">
+        <span>Attendance Rate</span><span style="color:#10b981">${pct}%</span>
+      </div>
+      <div class="pct-bar-bg"><div class="pct-bar-fill" style="width:${pct}%"></div></div>
+    </div>` : ""}
     <table>
-      <thead><tr><th>#</th><th>Name</th><th>Roll No.</th><th>Status</th><th>GPS</th><th>Distance</th></tr></thead>
-      <tbody>${rows || "<tr><td colspan='5' style='text-align:center;padding:20px;color:#94a3b8'>No students marked present</td></tr>"}</tbody>
+      <thead><tr><th>#</th><th>Student Name</th><th>Roll No.</th><th>Status</th><th>GPS</th><th>Distance</th></tr></thead>
+      <tbody>${rows || "<tr><td colspan='6' style='text-align:center;padding:20px;color:#94a3b8'>No submissions yet</td></tr>"}</tbody>
     </table>
     <div class="footer">
-      <p>Generated on ${new Date().toLocaleString("en-IN")} &nbsp;·&nbsp; BCE Bhagalpur ERP</p>
-      <p>This is a computer-generated attendance report.</p>
+      <p>Generated on ${new Date().toLocaleString("en-IN")} · BCE Bhagalpur College ERP</p>
+      <p style="margin-top:4px">Only students enrolled in this course are listed. No signature required.</p>
     </div>
     </body></html>`;
 
@@ -207,17 +780,21 @@ const LiveAttendance = () => {
     win.print();
   };
 
-  const presentCount  = submissions.filter((s) => s.status === "Present").length;
-  const rejectedCount = submissions.filter((s) => s.status === "Rejected").length;
-  const timerColor    = timeLeft > 30 ? "text-emerald-600" : timeLeft > 10 ? "text-amber-500" : "text-red-600";
-  const selectedCourseName = courses.find((c) => c._id === selectedCourse)?.name || "";
+  // ── Derived values ─────────────────────────────────────────────────────────
+  const presentCount      = submissions.filter((s) => s.status === "Present").length;
+  const rejectedCount     = submissions.filter((s) => s.status === "Rejected").length;
+  const timerPct          = session ? (timeLeft / Number(duration)) * 100 : 100;
+  const timerColor        = timeLeft > 30 ? "text-emerald-400" : timeLeft > 10 ? "text-amber-400" : "text-red-400";
+  const selectedCourseObj = courses.find((c) => c._id === selectedCourse);
 
   return (
     <div className="min-h-screen bg-slate-50 p-6 space-y-6">
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm ${toast.type === "error" ? "bg-red-500" : "bg-emerald-500"}`}>
+        <div className={`fixed top-5 right-5 z-50 px-5 py-3 rounded-xl shadow-lg text-white font-semibold text-sm transition-all ${
+          toast.type === "error" ? "bg-red-500" : "bg-emerald-500"
+        }`}>
           {toast.msg}
         </div>
       )}
@@ -225,40 +802,59 @@ const LiveAttendance = () => {
       {/* Header */}
       <div>
         <h1 className="text-3xl font-black text-slate-800">📡 Live Attendance</h1>
-        <p className="text-slate-400 text-sm mt-1">Start a session — students solve a number challenge + GPS verification</p>
+        <p className="text-slate-400 text-sm mt-1">
+          Students solve a number challenge + GPS verification — scoped to course · department · semester
+        </p>
       </div>
 
       {/* GPS Status */}
-      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold ${gps ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-red-50 text-red-600 border border-red-200"}`}>
+      <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-semibold border ${
+        gps
+          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+          : "bg-red-50 text-red-600 border-red-200"
+      }`}>
         <span className="text-lg">{gps ? "📍" : "⚠️"}</span>
         {gps
           ? `GPS Ready — Lat: ${gps.lat.toFixed(5)}, Lng: ${gps.lng.toFixed(5)}`
-          : gpsError || "Getting GPS location..."}
+          : gpsError || "Getting GPS location…"}
       </div>
 
-      {/* ── FULL REPORT (shown after session ends) ── */}
+      {/* ── FULL REPORT (after session ends) ──────────────────────────────── */}
       {!session?.active && report?.generated && (
         <div className="space-y-4">
-          {/* Report header */}
+          {/* Report header card */}
           <div className="bg-slate-800 text-white rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-start justify-between mb-5">
               <div>
-                <p className="text-slate-400 text-xs uppercase font-semibold">Session Report</p>
-                <p className="font-bold text-lg mt-0.5">{selectedCourseName}</p>
-                <p className="text-slate-400 text-xs mt-1">{new Date(report.generatedAt).toLocaleString("en-IN")}</p>
+                <p className="text-slate-400 text-xs uppercase font-semibold">Session Complete</p>
+                <p className="font-bold text-lg mt-0.5">{selectedCourseObj?.name || "—"}</p>
+                <div className="flex gap-2 mt-2">
+                  <span className="bg-blue-500/30 text-blue-300 text-xs px-2 py-0.5 rounded-full font-semibold">
+                    {selectedCourseObj?.department}
+                  </span>
+                  <span className="bg-slate-600 text-slate-300 text-xs px-2 py-0.5 rounded-full font-semibold">
+                    Sem {selectedCourseObj?.semester ?? semester}
+                  </span>
+                </div>
+                <p className="text-slate-400 text-xs mt-1">
+                  {new Date(report.generatedAt).toLocaleString("en-IN")}
+                </p>
               </div>
-              <button onClick={downloadPDF}
-                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2">
+              <button
+                onClick={downloadPDF}
+                className="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition flex items-center gap-2"
+              >
                 📄 Download PDF
               </button>
             </div>
+
             {/* Stats */}
             <div className="grid grid-cols-4 gap-3">
               {[
-                { label: "Total",    value: report.totalStudents, color: "text-white",         bg: "bg-slate-700" },
-                { label: "Present",  value: report.presentCount,  color: "text-emerald-400",   bg: "bg-emerald-900/40" },
-                { label: "Absent",   value: report.absentCount,   color: "text-red-400",       bg: "bg-red-900/40" },
-                { label: "Rejected", value: report.rejectedCount, color: "text-amber-400",     bg: "bg-amber-900/40" },
+                { label: "Enrolled",  value: report.totalStudents, color: "text-white",       bg: "bg-slate-700"       },
+                { label: "Present",   value: report.presentCount,  color: "text-emerald-400", bg: "bg-emerald-900/40"  },
+                { label: "Absent",    value: report.absentCount,   color: "text-red-400",     bg: "bg-red-900/40"      },
+                { label: "Rejected",  value: report.rejectedCount, color: "text-amber-400",   bg: "bg-amber-900/40"    },
               ].map((s) => (
                 <div key={s.label} className={`${s.bg} rounded-xl p-3 text-center`}>
                   <p className={`text-3xl font-black ${s.color}`}>{s.value}</p>
@@ -266,26 +862,49 @@ const LiveAttendance = () => {
                 </div>
               ))}
             </div>
-            {/* Attendance % bar */}
+
+            {/* Attendance bar */}
             <div className="mt-4">
               <div className="flex justify-between text-xs text-slate-400 mb-1">
-                <span>Attendance Rate</span>
-                <span>{report.totalStudents > 0 ? Math.round((report.presentCount / report.totalStudents) * 100) : 0}%</span>
+                <span>Attendance Rate — {selectedCourseObj?.department} Sem {selectedCourseObj?.semester ?? semester}</span>
+                <span className="font-bold">
+                  {report.totalStudents > 0
+                    ? Math.round((report.presentCount / report.totalStudents) * 100)
+                    : 0}%
+                </span>
               </div>
               <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
-                <div className="h-full bg-emerald-400 rounded-full" style={{ width: `${report.totalStudents > 0 ? (report.presentCount / report.totalStudents) * 100 : 0}%` }} />
+                <div
+                  className="h-full bg-emerald-400 rounded-full"
+                  style={{
+                    width: `${report.totalStudents > 0
+                      ? Math.round((report.presentCount / report.totalStudents) * 100)
+                      : 0}%`,
+                  }}
+                />
               </div>
             </div>
           </div>
 
-          {/* Full student table */}
+          {/* Full attendance table */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-5 border-b border-slate-100 flex items-center justify-between">
-              <h2 className="font-bold text-slate-700">📋 Full Attendance Sheet</h2>
+              <div>
+                <h2 className="font-bold text-slate-700">📋 Full Attendance Sheet</h2>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {selectedCourseObj?.name} — {selectedCourseObj?.department} Semester {selectedCourseObj?.semester ?? semester}
+                </p>
+              </div>
               <div className="flex gap-2 text-xs">
-                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">✓ {report.presentCount} Present</span>
-                <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full font-semibold">✗ {report.absentCount} Absent</span>
-                <span className="bg-amber-100 text-amber-600 px-2 py-1 rounded-full font-semibold">⚠ {report.rejectedCount} Rejected</span>
+                <span className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full font-semibold">
+                  ✓ {report.presentCount}
+                </span>
+                <span className="bg-red-100 text-red-600 px-2 py-1 rounded-full font-semibold">
+                  ✗ {report.absentCount}
+                </span>
+                <span className="bg-amber-100 text-amber-600 px-2 py-1 rounded-full font-semibold">
+                  ⚠ {report.rejectedCount}
+                </span>
               </div>
             </div>
             <div className="overflow-x-auto max-h-96 overflow-y-auto">
@@ -301,8 +920,19 @@ const LiveAttendance = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
+                  {(report.entries || []).length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="text-center py-8 text-slate-400">No records</td>
+                    </tr>
+                  )}
                   {(report.entries || []).map((e, i) => (
-                    <tr key={i} className={`hover:bg-slate-50 transition ${e.status === "Present" ? "bg-emerald-50/20" : e.status === "Absent" ? "" : "bg-amber-50/20"}`}>
+                    <tr
+                      key={i}
+                      className={`hover:bg-slate-50 ${
+                        e.status === "Present" ? "bg-emerald-50/20" :
+                        e.status === "Rejected" ? "bg-amber-50/20" : ""
+                      }`}
+                    >
                       <td className="px-4 py-3 text-slate-400 text-xs">{i + 1}</td>
                       <td className="px-4 py-3 font-semibold text-slate-800">{e.name}</td>
                       <td className="px-4 py-3 font-mono text-xs text-slate-600">{e.rollNumber}</td>
@@ -312,12 +942,14 @@ const LiveAttendance = () => {
                           e.status === "Absent"   ? "bg-red-100 text-red-600" :
                                                     "bg-amber-100 text-amber-600"
                         }`}>
-                          {e.status === "Present" ? "✓ Present" : e.status === "Absent" ? "✗ Absent" : "⚠ Rejected"}
+                          {e.status === "Present" ? "✓ Present" :
+                           e.status === "Absent"  ? "✗ Absent"  : "⚠ Rejected"}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center text-xs">
-                        {e.gpsValid === true ? <span className="text-emerald-600 font-semibold">✓</span> :
-                         e.gpsValid === false ? <span className="text-red-500 font-semibold">✗</span> : "—"}
+                        {e.gpsValid === true  ? <span className="text-emerald-600 font-bold">✓</span> :
+                         e.gpsValid === false ? <span className="text-red-500 font-bold">✗</span>    :
+                                               <span className="text-slate-300">—</span>}
                       </td>
                       <td className="px-4 py-3 text-center text-xs text-slate-500">
                         {e.distance != null ? `${e.distance}m` : "—"}
@@ -329,83 +961,163 @@ const LiveAttendance = () => {
             </div>
           </div>
 
-          <button onClick={() => { setReport(null); setSession(null); setSubmissions([]); }}
-            className="w-full border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition">
+          <button
+            onClick={resetSession}
+            className="w-full border border-slate-200 rounded-xl py-3 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition"
+          >
             + Start New Session
           </button>
         </div>
       )}
 
+      {/* ── START SESSION FORM ─────────────────────────────────────────────── */}
       {!session?.active && !report?.generated && (
-        /* ── START SESSION FORM ── */
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-6 space-y-5">
           <h2 className="text-lg font-bold text-slate-700">⚙️ Configure Session</h2>
 
-          <div className="space-y-1">
+          {/* Course select */}
+          <div className="space-y-1.5">
             <label className="text-xs font-semibold text-slate-500 uppercase">Course / Subject</label>
-            <select value={selectedCourse} onChange={(e) => setSelectedCourse(e.target.value)}
-              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-slate-400">
-              {courses.map((c) => <option key={c._id} value={c._id}>{c.name} ({c.code})</option>)}
+            <select
+              value={selectedCourse}
+              onChange={(e) => handleCourseChange(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-slate-400"
+            >
+              {courses.length === 0
+                ? <option value="">No courses assigned</option>
+                : courses.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name} ({c.code}) — {c.department} · Sem {c.semester}
+                    </option>
+                  ))
+              }
+            </select>
+          </div>
+
+          {/* Session scope banner — auto-filled, read-only info */}
+          {selectedCourseObj && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 grid grid-cols-3 gap-3">
+              <div>
+                <p className="text-xs text-blue-400 font-semibold uppercase">Department</p>
+                <p className="text-sm font-bold text-blue-800 mt-0.5">{selectedCourseObj.department}</p>
+              </div>
+              <div>
+                <p className="text-xs text-blue-400 font-semibold uppercase">Semester</p>
+                <p className="text-sm font-bold text-blue-800 mt-0.5">Semester {selectedCourseObj.semester}</p>
+              </div>
+              <div>
+                <p className="text-xs text-blue-400 font-semibold uppercase">Course Code</p>
+                <p className="text-sm font-bold text-blue-800 mt-0.5">{selectedCourseObj.code}</p>
+              </div>
+              <div className="col-span-3">
+                <p className="text-xs text-blue-600">
+                  ℹ️ Only <strong>{selectedCourseObj.department}</strong> Semester <strong>{selectedCourseObj.semester}</strong> students
+                  enrolled in this course will be counted in attendance.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Semester override (in case course.semester is wrong) */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold text-slate-500 uppercase">
+              Semester <span className="text-slate-400 font-normal normal-case">(auto-filled from course — override if needed)</span>
+            </label>
+            <select
+              value={semester}
+              onChange={(e) => setSemester(e.target.value)}
+              className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-slate-400"
+            >
+              {[1,2,3,4,5,6,7,8].map((s) => (
+                <option key={s} value={s}>Semester {s}</option>
+              ))}
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase">Duration (seconds)</label>
-              <select value={duration} onChange={(e) => setDuration(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase">Duration</label>
+              <select
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-slate-400"
+              >
                 <option value={30}>30 seconds</option>
-                <option value={60}>60 seconds</option>
+                <option value={60}>1 minute</option>
                 <option value={90}>90 seconds</option>
                 <option value={120}>2 minutes</option>
+                <option value={180}>3 minutes</option>
+                <option value={300}>5 minutes</option>
               </select>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-500 uppercase">GPS Radius (meters)</label>
-              <select value={radius} onChange={(e) => setRadius(e.target.value)}
-                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none">
-                <option value={50}>50m (strict)</option>
-                <option value={100}>100m (normal)</option>
-                <option value={200}>200m (relaxed)</option>
-                <option value={500}>500m (building)</option>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-500 uppercase">GPS Radius</label>
+              <select
+                value={radius}
+                onChange={(e) => setRadius(e.target.value)}
+                className="w-full border border-slate-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-slate-400"
+              >
+                <option value={50}>50m — strict</option>
+                <option value={100}>100m — normal</option>
+                <option value={200}>200m — relaxed</option>
+                <option value={500}>500m — building</option>
               </select>
             </div>
           </div>
 
-          <button onClick={startSession} disabled={loading || !gps}
-            className="w-full bg-slate-800 text-white py-3 rounded-2xl font-bold text-base hover:bg-slate-700 disabled:opacity-50 transition flex items-center justify-center gap-2">
-            {loading ? "Starting..." : "🚀 Start Live Session"}
+          <button
+            onClick={startSession}
+            disabled={loading || !gps || !selectedCourse}
+            className="w-full bg-slate-800 text-white py-3.5 rounded-2xl font-bold text-base hover:bg-slate-700 disabled:opacity-50 transition flex items-center justify-center gap-2"
+          >
+            {loading
+              ? <><span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" /> Starting…</>
+              : "🚀 Start Live Session"
+            }
           </button>
         </div>
       )}
 
+      {/* ── ACTIVE SESSION ─────────────────────────────────────────────────── */}
       {session?.active && (
-        /* ── ACTIVE SESSION ── */
         <div className="space-y-4">
 
-          {/* Session Info Card */}
+          {/* Session info + challenge */}
           <div className="bg-slate-800 text-white rounded-2xl p-6">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-start justify-between mb-5">
               <div>
                 <p className="text-slate-400 text-xs uppercase font-semibold">Active Session</p>
-                <p className="font-bold text-lg mt-0.5">{selectedCourseName}</p>
+                <p className="font-bold text-lg mt-0.5">{selectedCourseObj?.name || "—"}</p>
+                <div className="flex gap-2 mt-1.5">
+                  <span className="bg-blue-500/30 text-blue-300 text-xs px-2 py-0.5 rounded-full font-semibold">
+                    {selectedCourseObj?.department}
+                  </span>
+                  <span className="bg-slate-600 text-slate-300 text-xs px-2 py-0.5 rounded-full font-semibold">
+                    Sem {selectedCourseObj?.semester ?? semester}
+                  </span>
+                </div>
               </div>
               <div className="text-right">
-                <p className={`text-4xl font-black tabular-nums ${timerColor}`}>{timeLeft}s</p>
-                <p className="text-slate-400 text-xs">remaining</p>
+                <p className={`text-5xl font-black tabular-nums ${timerColor}`}>{timeLeft}s</p>
+                <p className="text-slate-400 text-xs mt-1">remaining</p>
               </div>
             </div>
 
-            {/* Challenge numbers */}
-            <div>
-              <p className="text-slate-400 text-xs uppercase font-semibold mb-3">Challenge — Students must click in this order:</p>
-              <div className="flex gap-3">
+            {/* Challenge */}
+            <div className="mb-5">
+              <p className="text-slate-400 text-xs uppercase font-semibold mb-3">
+                Challenge — students must tap in this exact order:
+              </p>
+              <div className="flex items-center gap-3 flex-wrap">
                 {session.challenge?.map((n, i) => (
-                  <div key={i} className="w-14 h-14 rounded-2xl bg-yellow-400 text-slate-900 flex items-center justify-center text-2xl font-black shadow-lg">
+                  <div
+                    key={i}
+                    className="w-14 h-14 rounded-2xl bg-yellow-400 text-slate-900 flex items-center justify-center text-2xl font-black shadow-lg"
+                  >
                     {n}
                   </div>
                 ))}
-                <div className="flex items-center gap-1 ml-2">
+                <div className="ml-2 flex items-center gap-1">
                   {session.challenge?.map((n, i) => (
                     <span key={i} className="text-slate-300 font-bold text-lg">
                       {n}{i < session.challenge.length - 1 ? " →" : ""}
@@ -416,41 +1128,31 @@ const LiveAttendance = () => {
             </div>
 
             {/* Timer bar */}
-            <div className="mt-4 h-2 bg-slate-700 rounded-full overflow-hidden">
+            <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
               <div
-                className="h-full rounded-full transition-all bg-yellow-400"
-                style={{ width: `${(timeLeft / duration) * 100}%` }}
+                className="h-full rounded-full bg-yellow-400 transition-all duration-1000"
+                style={{ width: `${timerPct}%` }}
               />
             </div>
 
+            {/* Controls */}
             <div className="flex gap-2 mt-4">
-              <button onClick={stopSession} className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2 rounded-xl font-semibold text-sm transition">
-                ⏹ Stop Session
+              <button
+                onClick={stopSession}
+                className="flex-1 bg-red-500 hover:bg-red-600 text-white py-2.5 rounded-xl font-semibold text-sm transition"
+              >
+                ⏹ Stop &amp; Generate Report
               </button>
-              <button onClick={() => refreshSession()} className="px-4 bg-slate-700 hover:bg-slate-600 text-white py-2 rounded-xl font-semibold text-sm transition">
-                🔄 Refresh
-              </button>
-              <button onClick={downloadPDF} className="px-4 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-xl font-semibold text-sm transition">
+              <button
+                onClick={downloadPDF}
+                className="px-4 bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl font-semibold text-sm transition"
+              >
                 📄 PDF
               </button>
             </div>
           </div>
 
-          {/* PDF Download when session ends */}
-          {!session?.active && submissions.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 flex items-center justify-between">
-              <div>
-                <p className="font-bold text-slate-800">Session Ended</p>
-                <p className="text-sm text-slate-500 mt-0.5">{submissions.filter(s=>s.status==="Present").length} students marked present</p>
-              </div>
-              <button onClick={downloadPDF}
-                className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-semibold text-sm hover:bg-emerald-700 transition flex items-center gap-2">
-                📄 Download Attendance PDF
-              </button>
-            </div>
-          )}
-
-          {/* Live Stats */}
+          {/* Live stats */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white rounded-2xl p-4 text-center shadow-sm border border-slate-100">
               <p className="text-3xl font-black text-emerald-600">{presentCount}</p>
@@ -466,36 +1168,54 @@ const LiveAttendance = () => {
             </div>
           </div>
 
-          {/* Submissions list */}
+          {/* Live submissions list */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <div className="p-5 border-b border-slate-100">
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-bold text-slate-700">📋 Live Submissions</h2>
+              <span className="text-xs text-slate-400 bg-slate-100 px-2 py-1 rounded-full">
+                Auto-refreshing every 3s
+              </span>
             </div>
             <div className="divide-y divide-slate-50 max-h-80 overflow-y-auto">
               {submissions.length === 0 && (
-                <p className="text-center py-10 text-slate-400 text-sm">Waiting for students to submit...</p>
+                <p className="text-center py-10 text-slate-400 text-sm">
+                  Waiting for students to submit…
+                </p>
               )}
               {submissions.map((s, i) => (
-                <div key={i} className={`flex items-center justify-between px-5 py-3 ${s.status === "Present" ? "bg-emerald-50/40" : "bg-red-50/30"}`}>
+                <div
+                  key={i}
+                  className={`flex items-center justify-between px-5 py-3 ${
+                    s.status === "Present" ? "bg-emerald-50/40" : "bg-red-50/30"
+                  }`}
+                >
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-black shrink-0 ${s.status === "Present" ? "bg-emerald-500" : "bg-red-500"}`}>
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-black shrink-0 ${
+                      s.status === "Present" ? "bg-emerald-500" : "bg-red-500"
+                    }`}>
                       {s.status === "Present" ? "✓" : "✗"}
                     </div>
                     <div>
-                      <p className="font-bold text-slate-800 text-sm">{s.name || s.student?.name || "—"}</p>
-                      <p className="text-xs text-slate-400 font-mono">{s.rollNumber || s.student?.rollNumber || "—"}</p>
+                      <p className="font-bold text-slate-800 text-sm">{s.name || "—"}</p>
+                      <p className="text-xs text-slate-400 font-mono">{s.rollNumber || "—"}</p>
                     </div>
                   </div>
                   <div className="text-right space-y-1">
-                    <div className="flex gap-1 justify-end">
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${s.correct ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
+                    <div className="flex gap-1 justify-end flex-wrap">
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${
+                        s.correct ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"
+                      }`}>
                         {s.correct ? "✓ Nums" : "✗ Nums"}
                       </span>
-                      <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${s.gpsValid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"}`}>
-                        {s.gpsValid ? "✓ GPS" : `✗ GPS ${s.distance ? `(${s.distance}m)` : ""}`}
+                      <span className={`text-xs px-1.5 py-0.5 rounded font-semibold ${
+                        s.gpsValid ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-600"
+                      }`}>
+                        {s.gpsValid ? "✓ GPS" : `✗ GPS${s.distance ? ` (${s.distance}m)` : ""}`}
                       </span>
                     </div>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${s.status === "Present" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"}`}>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                      s.status === "Present" ? "bg-emerald-500 text-white" : "bg-red-500 text-white"
+                    }`}>
                       {s.status}
                     </span>
                   </div>
