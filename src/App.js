@@ -84,7 +84,8 @@ function App() {
           {/* TEACHER */}
           <Route path="/teacher" element={<ProtectedRoute roles={["teacher"]}><TeacherLayout /></ProtectedRoute>}>
             <Route index element={<TeacherDashboard />} />
-            <Route path="add-marks" element={<AddMarks />} />
+             <Route path="/teacher/add-marks" element={<AddMarks />} />  
+  
             <Route path="live-attendance" element={<LiveAttendance />} />
           </Route>
 

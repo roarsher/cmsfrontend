@@ -942,6 +942,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend,
 } from "recharts";
+import { useNavigate } from "react-router-dom";
 
 const Icons = {
   Students:   () => <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-6 h-6"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
@@ -963,6 +964,7 @@ const getAttColor = (pct) => {
   return              { bg: "bg-red-100",        text: "text-red-700",     bar: "#ef4444" };
 };
 const PIE_COLORS = ["#10b981", "#f59e0b", "#ef4444"];
+
 
 // ── KEY HELPER: get students enrolled in a specific course ────────────────────
 // Matches by dept + semester + course reference in student.courses array
@@ -1149,98 +1151,98 @@ const AttendanceModal = ({ allStudents, courses, onClose, onToast, onRefresh }) 
 // ─────────────────────────────────────────────────────────────────────────────
 // MARKS MODAL — pick course → search only enrolled students of that course
 // ─────────────────────────────────────────────────────────────────────────────
-const MarksModal = ({ allStudents, courses, onClose, onToast, onRefresh }) => {
-  const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?._id || "");
-  const [search, setSearch]             = useState("");
-  const [suggestions, setSuggestions]   = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState(null);
-  const [marks, setMarks]               = useState("");
-  const [loading, setLoading]           = useState(false);
+// const MarksModal = ({ allStudents, courses, onClose, onToast, onRefresh }) => {
+//   const [selectedCourseId, setSelectedCourseId] = useState(courses[0]?._id || "");
+//   const [search, setSearch]             = useState("");
+//   const [suggestions, setSuggestions]   = useState([]);
+//   const [selectedStudent, setSelectedStudent] = useState(null);
+//   const [marks, setMarks]               = useState("");
+//   const [loading, setLoading]           = useState(false);
 
-  const selectedCourse = courses.find((c) => c._id === selectedCourseId);
+//   const selectedCourse = courses.find((c) => c._id === selectedCourseId);
 
-  useEffect(() => { setSearch(""); setSelectedStudent(null); setSuggestions([]); }, [selectedCourseId]);
+//   useEffect(() => { setSearch(""); setSelectedStudent(null); setSuggestions([]); }, [selectedCourseId]);
 
-  const handleSearch = (q) => {
-    setSearch(q); setSelectedStudent(null);
-    if (!selectedCourse || q.length < 2) { setSuggestions([]); return; }
-    const enrolled = getEnrolledStudents(allStudents, selectedCourse);
-    setSuggestions(enrolled.filter(
-      (s) => s.name.toLowerCase().includes(q.toLowerCase()) || s.rollNumber?.toLowerCase().includes(q.toLowerCase())
-    ));
-  };
+//   const handleSearch = (q) => {
+//     setSearch(q); setSelectedStudent(null);
+//     if (!selectedCourse || q.length < 2) { setSuggestions([]); return; }
+//     const enrolled = getEnrolledStudents(allStudents, selectedCourse);
+//     setSuggestions(enrolled.filter(
+//       (s) => s.name.toLowerCase().includes(q.toLowerCase()) || s.rollNumber?.toLowerCase().includes(q.toLowerCase())
+//     ));
+//   };
 
-  const selectStudent = (s) => { setSelectedStudent(s); setSearch(`${s.name} (${s.rollNumber})`); setSuggestions([]); };
+//   const selectStudent = (s) => { setSelectedStudent(s); setSearch(`${s.name} (${s.rollNumber})`); setSuggestions([]); };
 
-  const submit = async () => {
-    if (!selectedStudent)                     return onToast("Select a student", "error");
-    if (!selectedCourseId)                    return onToast("Select a course", "error");
-    if (marks === "" || isNaN(marks))         return onToast("Enter valid marks (0–100)", "error");
-    if (Number(marks) < 0 || Number(marks) > 100) return onToast("Marks must be 0–100", "error");
-    setLoading(true);
-    try {
-      await API.post("/teacher/marks", { studentId: selectedStudent._id, courseId: selectedCourseId, marks: Number(marks) });
-      onToast(`Marks added for ${selectedStudent.name} in ${selectedCourse?.name}`, "success");
-      onRefresh(); onClose();
-    } catch (err) {
-      onToast(err.response?.data?.message || "Failed", "error");
-    } finally { setLoading(false); }
-  };
+//   const submit = async () => {
+//     if (!selectedStudent)                     return onToast("Select a student", "error");
+//     if (!selectedCourseId)                    return onToast("Select a course", "error");
+//     if (marks === "" || isNaN(marks))         return onToast("Enter valid marks (0–100)", "error");
+//     if (Number(marks) < 0 || Number(marks) > 100) return onToast("Marks must be 0–100", "error");
+//     setLoading(true);
+//     try {
+//       await API.post("/teacher/marks", { studentId: selectedStudent._id, courseId: selectedCourseId, marks: Number(marks) });
+//       onToast(`Marks added for ${selectedStudent.name} in ${selectedCourse?.name}`, "success");
+//       onRefresh(); onClose();
+//     } catch (err) {
+//       onToast(err.response?.data?.message || "Failed", "error");
+//     } finally { setLoading(false); }
+//   };
 
-  return (
-    <Modal title="📝 Add Marks" onClose={onClose}>
-      <div className="space-y-4">
-        <FormSelect label="Select Course" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
-          {courses.length === 0
-            ? <option value="">No courses assigned</option>
-            : courses.map((c) => (
-                <option key={c._id} value={c._id}>{c.name} — {c.department} Sem {c.semester}</option>
-              ))}
-        </FormSelect>
+//   return (
+//     <Modal title="📝 Add Marks" onClose={onClose}>
+//       <div className="space-y-4">
+//         <FormSelect label="Select Course" value={selectedCourseId} onChange={(e) => setSelectedCourseId(e.target.value)}>
+//           {courses.length === 0
+//             ? <option value="">No courses assigned</option>
+//             : courses.map((c) => (
+//                 <option key={c._id} value={c._id}>{c.name} — {c.department} Sem {c.semester}</option>
+//               ))}
+//         </FormSelect>
 
-        {selectedCourse && (
-          <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 flex items-center gap-3 text-xs font-bold text-violet-700">
-            <Icons.Book />
-            <span>{selectedCourse.department} · Semester {selectedCourse.semester} — only enrolled students shown</span>
-          </div>
-        )}
+//         {selectedCourse && (
+//           <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 flex items-center gap-3 text-xs font-bold text-violet-700">
+//             <Icons.Book />
+//             <span>{selectedCourse.department} · Semester {selectedCourse.semester} — only enrolled students shown</span>
+//           </div>
+//         )}
 
-        <div className="relative">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Search Student</label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icons.Search /></span>
-              <input placeholder="Name or roll number…" value={search} onChange={(e) => handleSearch(e.target.value)}
-                className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50" />
-            </div>
-          </div>
-          {suggestions.length > 0 && (
-            <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto">
-              {suggestions.map((s) => (
-                <button key={s._id} type="button" onClick={() => selectStudent(s)}
-                  className="w-full text-left px-4 py-3 hover:bg-blue-50 transition border-b border-gray-50 last:border-0">
-                  <p className="text-sm font-semibold text-gray-800">{s.name}</p>
-                  <p className="text-xs text-gray-400">Roll: {s.rollNumber} · {s.department} Sem {s.semester}</p>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+//         <div className="relative">
+//           <div className="flex flex-col gap-1">
+//             <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Search Student</label>
+//             <div className="relative">
+//               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icons.Search /></span>
+//               <input placeholder="Name or roll number…" value={search} onChange={(e) => handleSearch(e.target.value)}
+//                 className="w-full border border-gray-200 rounded-xl pl-9 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-gray-50" />
+//             </div>
+//           </div>
+//           {suggestions.length > 0 && (
+//             <div className="absolute z-10 w-full bg-white border border-gray-200 rounded-xl shadow-lg mt-1 max-h-48 overflow-y-auto">
+//               {suggestions.map((s) => (
+//                 <button key={s._id} type="button" onClick={() => selectStudent(s)}
+//                   className="w-full text-left px-4 py-3 hover:bg-blue-50 transition border-b border-gray-50 last:border-0">
+//                   <p className="text-sm font-semibold text-gray-800">{s.name}</p>
+//                   <p className="text-xs text-gray-400">Roll: {s.rollNumber} · {s.department} Sem {s.semester}</p>
+//                 </button>
+//               ))}
+//             </div>
+//           )}
+//         </div>
 
-        {selectedStudent && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm">
-            <p className="font-semibold text-blue-800">{selectedStudent.name}</p>
-            <p className="text-blue-600 text-xs mt-0.5">Roll: {selectedStudent.rollNumber} · {selectedStudent.department} Sem {selectedStudent.semester}</p>
-          </div>
-        )}
+//         {selectedStudent && (
+//           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm">
+//             <p className="font-semibold text-blue-800">{selectedStudent.name}</p>
+//             <p className="text-blue-600 text-xs mt-0.5">Roll: {selectedStudent.rollNumber} · {selectedStudent.department} Sem {selectedStudent.semester}</p>
+//           </div>
+//         )}
 
-        <FormInput label="Marks (0–100)" type="number" min="0" max="100" placeholder="Enter marks"
-          value={marks} onChange={(e) => setMarks(e.target.value)} />
-        <SubmitBtn loading={loading} onClick={submit}>Add Marks</SubmitBtn>
-      </div>
-    </Modal>
-  );
-};
+//         <FormInput label="Marks (0–100)" type="number" min="0" max="100" placeholder="Enter marks"
+//           value={marks} onChange={(e) => setMarks(e.target.value)} />
+//         <SubmitBtn loading={loading} onClick={submit}>Add Marks</SubmitBtn>
+//       </div>
+//     </Modal>
+//   );
+// };
 
 const NoticeModal = ({ onClose, onToast, onRefresh }) => {
   const [form, setForm]   = useState({ title: "", message: "" });
@@ -1324,7 +1326,9 @@ const QuickAction = ({ icon: Ic, label, color, onClick }) => (
 // MAIN DASHBOARD
 // ─────────────────────────────────────────────────────────────────────────────
 const TeacherDashboard = () => {
+  
   const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
   const [allStudents, setAllStudents]   = useState([]);
   const [courses, setCourses]           = useState([]);
   const [notices, setNotices]           = useState([]);
@@ -1406,7 +1410,7 @@ const TeacherDashboard = () => {
 
       {toast && <Toast msg={toast.msg} type={toast.type} onClose={closeToast} />}
       {modal === "attendance" && <AttendanceModal allStudents={allStudents} courses={courses} onClose={() => setModal(null)} onToast={showToast} onRefresh={fetchData} />}
-      {modal === "marks"      && <MarksModal      allStudents={allStudents} courses={courses} onClose={() => setModal(null)} onToast={showToast} onRefresh={fetchData} />}
+      {/* {modal === "marks"      && <MarksModal      allStudents={allStudents} courses={courses} onClose={() => setModal(null)} onToast={showToast} onRefresh={fetchData} />} */}
       {modal === "notice"     && <NoticeModal     onClose={() => setModal(null)} onToast={showToast} onRefresh={fetchData} />}
       {modal === "toppers"    && <TopPerformersModal allStudents={allStudents} courses={courses} onClose={() => setModal(null)} />}
 
@@ -1462,8 +1466,12 @@ const TeacherDashboard = () => {
         <h2 className="text-lg font-bold mb-4 text-gray-700">⚡ Quick Actions</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <QuickAction icon={Icons.Attendance} label="Mark Attendance" color="border-emerald-300 text-emerald-600 hover:bg-emerald-50" onClick={() => setModal("attendance")} />
-          <QuickAction icon={Icons.Marks}      label="Add Marks"       color="border-violet-300 text-violet-600 hover:bg-violet-50"   onClick={() => setModal("marks")}      />
-          <QuickAction icon={Icons.Notice}     label="Post Notice"     color="border-amber-300 text-amber-600 hover:bg-amber-50"      onClick={() => setModal("notice")}     />
+           <QuickAction 
+  icon={Icons.Marks} 
+  label="Add Marks" 
+  color="border-violet-300 text-violet-600 hover:bg-violet-50" 
+  onClick={() => navigate("/teacher/add-marks")}  // ← change this
+/><QuickAction icon={Icons.Notice}     label="Post Notice"     color="border-amber-300 text-amber-600 hover:bg-amber-50"      onClick={() => setModal("notice")}     />
           <QuickAction icon={Icons.Trophy}     label="Top Performers"  color="border-blue-300 text-blue-600 hover:bg-blue-50"         onClick={() => setModal("toppers")}    />
         </div>
       </div>
