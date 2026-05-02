@@ -750,72 +750,36 @@ const AdminRoutine = () => {
     setShowForm(true);
   };
 
-  // const save = async () => {
-  //   if (!form.date || !form.branch || !form.semester)
-  //     return showToast("Date, branch and semester are required", "error");
-  //   if (form.slots.length === 0)
-  //     return showToast("Add at least one time slot", "error");
-  //   const invalid = form.slots.find((s) => !s.subject || !s.teacher);
-  //   if (invalid)
-  //     return showToast("Each slot needs a subject and teacher", "error");
+  const save = async () => {
+    if (!form.date || !form.branch || !form.semester)
+      return showToast("Date, branch and semester are required", "error");
+    if (form.slots.length === 0)
+      return showToast("Add at least one time slot", "error");
+    const invalid = form.slots.find((s) => !s.subject || !s.teacher);
+    if (invalid)
+      return showToast("Each slot needs a subject and teacher", "error");
 
-  //   setSaving(true);
-  //   try {
-  //     if (editingId) {
-  //       await API.put(`/routines/${editingId}`, { slots: form.slots });
-  //       showToast("Routine updated!");
-  //     } else {
-  //       await API.post("/routines", {
-  //         date:     form.date,
-  //         branch:   form.branch,
-  //         semester: Number(form.semester),
-  //         slots:    form.slots,
-  //       });
-  //       showToast("Routine created!");
-  //     }
-  //     setShowForm(false);
-  //     fetchRoutines();
-  //   } catch (e) {
-  //     showToast(e.response?.data?.message || "Failed to save", "error");
-  //   } finally { setSaving(false); }
-  // };
-const save = async () => {
-  if (!form.date || !form.branch || !form.semester)
-    return showToast("Date, branch and semester are required", "error");
-  if (form.slots.length === 0)
-    return showToast("Add at least one time slot", "error");
-  const invalid = form.slots.find((s) => !s.subject || !s.teacher);
-  if (invalid)
-    return showToast("Each slot needs a subject and teacher", "error");
-
-  // ── DEBUG: log exactly what we're sending ──────────────────────────
-  const payload = {
-    date:     form.date,
-    branch:   form.branch,
-    semester: Number(form.semester),
-    slots:    form.slots,
+    setSaving(true);
+    try {
+      if (editingId) {
+        await API.put(`/routines/${editingId}`, { slots: form.slots });
+        showToast("Routine updated!");
+      } else {
+        await API.post("/routines", {
+          date:     form.date,
+          branch:   form.branch,
+          semester: Number(form.semester),
+          slots:    form.slots,
+        });
+        showToast("Routine created!");
+      }
+      setShowForm(false);
+      fetchRoutines();
+    } catch (e) {
+      showToast(e.response?.data?.message || "Failed to save", "error");
+    } finally { setSaving(false); }
   };
-  console.log("📤 SENDING PAYLOAD:", JSON.stringify(payload, null, 2));
-
-  setSaving(true);
-  try {
-    if (editingId) {
-      await API.put(`/routines/${editingId}`, { slots: form.slots });
-      showToast("Routine updated!");
-    } else {
-      const res = await API.post("/routines", payload);
-      console.log("✅ SUCCESS:", res.data);
-      showToast("Routine created!");
-    }
-    setShowForm(false);
-    fetchRoutines();
-  } catch (e) {
-    // ── DEBUG: log the full error response ────────────────────────────
-    console.error("❌ ERROR STATUS:", e.response?.status);
-    console.error("❌ ERROR DATA:", JSON.stringify(e.response?.data, null, 2));
-    showToast(e.response?.data?.message || "Failed to save", "error");
-  } finally { setSaving(false); }
-};
+ 
   const deleteRoutine = async (id) => {
     if (!window.confirm("Delete this routine?")) return;
     try {
