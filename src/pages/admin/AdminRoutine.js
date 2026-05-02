@@ -557,9 +557,15 @@ const SlotRow = ({ slot, index, teachers, courses, onChange, onRemove }) => {
         className="col-span-3 border border-slate-200 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-slate-400"
       >
         <option value="">Select Teacher</option>
-        {teachers.map((t) => (
+        {/* {teachers.map((t) => (
           <option key={t._id} value={t._id}>{t.name} — {(t.departments||[]).join(", ")}</option>
-        ))}
+        ))} */}
+         
+      {teachers.map((t) => (
+      <option key={t._id} value={t._id}>
+      {t.name} — {t.department || ""}   {/* ← was t.departments||[] */}
+      </option>
+       ))}
       </select>
 
       <button
@@ -691,7 +697,8 @@ const AdminRoutine = () => {
 
   useEffect(() => {
     Promise.all([
-      API.get("/admin/teachers").then((r) => setTeachers(r.data || [])),
+       // To this — handles both array and {teachers:[]} response shapes:
+      API.get("/admin/teachers").then((r) => setTeachers(r.data?.teachers || r.data || [])),
       API.get("/admin/courses").then((r)  => setCourses(r.data.courses || [])),
     ]).finally(() => setLoading(false));
   }, []);
