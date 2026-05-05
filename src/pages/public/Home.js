@@ -1,8 +1,9 @@
-//  // src/pages/public/Home.jsx
-// import React from "react";
+ 
+// import React, { useEffect, useState } from "react";
 // import Bg from "../../components/layout/Bg";
 // import { motion } from "framer-motion";
-
+// import API from "../../api/axios";
+ 
 // import {
 //   FaUserGraduate,
 //   FaChalkboardTeacher,
@@ -46,6 +47,21 @@
 // ];
 
 // function Home() {
+//   const [notices, setNotices] = useState([]);
+
+//   useEffect(() => {
+//     const fetchNotices = async () => {
+//       try {
+//         const res = await API.get("/admin/public/notices");
+//         setNotices(res.data);
+//       } catch (error) {
+//         console.error("Failed to fetch notices", error);
+//       }
+//     };
+
+//     fetchNotices();
+//   }, []);
+
 //   return (
 //     <Bg>
 //       {/* HERO SECTION */}
@@ -80,10 +96,55 @@
 //                          transition-all duration-300"
 //             >
 //               <div className="text-yellow-50 text-3xl mb-4">{item.icon}</div>
-//               <h2 className="text-xl font-semibold text-yellow-50 mb-2">{item.title}</h2>
-//               <p className="text-white text-sm leading-relaxed">{item.desc}</p>
+//               <h2 className="text-xl font-semibold text-yellow-50 mb-2">
+//                 {item.title}
+//               </h2>
+//               <p className="text-white text-sm leading-relaxed">
+//                 {item.desc}
+//               </p>
 //             </motion.div>
 //           ))}
+//         </div>
+//       </div>
+
+//       {/* NOTIFICATIONS SECTION */}
+//       <div className="mt-20 max-w-5xl mx-auto px-4">
+//         <h2 className="text-3xl font-bold text-yellow-50 mb-8 text-center">
+//           📢 Latest Notifications
+//         </h2>
+
+//         <div className="space-y-6">
+//           {notices.length === 0 ? (
+//             <p className="text-white text-center">
+//               No notices available.
+//             </p>
+//           ) : (
+//             notices.slice(0, 5).map((notice, index) => (
+//               <motion.div
+//                 key={notice._id}
+//                 initial={{ opacity: 0, y: 20 }}
+//                 whileInView={{ opacity: 1, y: 0 }}
+//                 transition={{ delay: index * 0.1 }}
+//                 viewport={{ once: true }}
+//                 className="bg-richblack-900/90 backdrop-blur-md
+//                            border border-richblack-700
+//                            p-6 rounded-xl shadow-lg
+//                            hover:shadow-yellow-200/30 transition-all"
+//               >
+//                 <h3 className="text-lg font-semibold text-yellow-50">
+//                   {notice.title}
+//                 </h3>
+
+//                 <p className="text-white text-sm mt-3 leading-relaxed">
+//                   {notice.message}
+//                 </p>
+
+//                 <p className="text-gray-400 text-xs mt-3">
+//                   {new Date(notice.createdAt).toLocaleDateString()}
+//                 </p>
+//               </motion.div>
+//             ))
+//           )}
 //         </div>
 //       </div>
 
@@ -103,10 +164,12 @@
 // }
 
 // export default Home;
+
 import React, { useEffect, useState } from "react";
 import Bg from "../../components/layout/Bg";
 import { motion } from "framer-motion";
 import API from "../../api/axios";
+import downloadNoticePDF from "../../utils/downloadNoticePDF";
 
 import {
   FaUserGraduate,
@@ -157,12 +220,11 @@ function Home() {
     const fetchNotices = async () => {
       try {
         const res = await API.get("/admin/public/notices");
-        setNotices(res.data);
+        setNotices(Array.isArray(res.data) ? res.data : []);
       } catch (error) {
         console.error("Failed to fetch notices", error);
       }
     };
-
     fetchNotices();
   }, []);
 
@@ -200,12 +262,8 @@ function Home() {
                          transition-all duration-300"
             >
               <div className="text-yellow-50 text-3xl mb-4">{item.icon}</div>
-              <h2 className="text-xl font-semibold text-yellow-50 mb-2">
-                {item.title}
-              </h2>
-              <p className="text-white text-sm leading-relaxed">
-                {item.desc}
-              </p>
+              <h2 className="text-xl font-semibold text-yellow-50 mb-2">{item.title}</h2>
+              <p className="text-white text-sm leading-relaxed">{item.desc}</p>
             </motion.div>
           ))}
         </div>
@@ -219,9 +277,7 @@ function Home() {
 
         <div className="space-y-6">
           {notices.length === 0 ? (
-            <p className="text-white text-center">
-              No notices available.
-            </p>
+            <p className="text-white text-center">No notices available.</p>
           ) : (
             notices.slice(0, 5).map((notice, index) => (
               <motion.div
@@ -233,19 +289,38 @@ function Home() {
                 className="bg-richblack-900/90 backdrop-blur-md
                            border border-richblack-700
                            p-6 rounded-xl shadow-lg
-                           hover:shadow-yellow-200/30 transition-all"
+                           hover:shadow-yellow-200/30 transition-all group"
               >
-                <h3 className="text-lg font-semibold text-yellow-50">
-                  {notice.title}
-                </h3>
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-yellow-50">
+                      {notice.title}
+                    </h3>
+                    <p className="text-white text-sm mt-3 leading-relaxed">
+                      {notice.message}
+                    </p>
+                    <p className="text-gray-400 text-xs mt-3">
+                      {new Date(notice.createdAt).toLocaleDateString("en-IN", {
+                        day: "numeric", month: "long", year: "numeric",
+                      })}
+                    </p>
+                  </div>
 
-                <p className="text-white text-sm mt-3 leading-relaxed">
-                  {notice.message}
-                </p>
-
-                <p className="text-gray-400 text-xs mt-3">
-                  {new Date(notice.createdAt).toLocaleDateString()}
-                </p>
+                  {/* PDF Download Button */}
+                  <button
+                    onClick={() => downloadNoticePDF(notice)}
+                    className="shrink-0 flex items-center gap-1.5 px-4 py-2 bg-white/10 hover:bg-white/20 text-yellow-100 border border-white/20 rounded-xl text-xs font-semibold transition-all"
+                    title="Download as PDF"
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-3.5 h-3.5">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="12" y1="18" x2="12" y2="12"/>
+                      <line x1="9" y1="15" x2="15" y2="15"/>
+                    </svg>
+                    Download PDF
+                  </button>
+                </div>
               </motion.div>
             ))
           )}

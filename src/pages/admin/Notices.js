@@ -224,7 +224,7 @@ const downloadNoticePDF = (notice) => {
   <!-- Letterhead -->
   <div class="lh">
     <div class="lh-name">Bihar College of Engineering, Bhagalpur</div>
-    <div class="lh-sub">Estd. 1960 &nbsp;|&nbsp; Affiliated to TNAU &nbsp;|&nbsp; NAAC Accredited</div>
+    <div class="lh-sub">Estd. 1960 &nbsp;|&nbsp; Affiliated to BEU &nbsp;</div>
     <div class="lh-addr">Sabour, Bhagalpur, Bihar – 813210 &nbsp;|&nbsp; Tel: (0641) 2502345</div>
     <hr class="lh-line">
   </div>
