@@ -129,7 +129,7 @@ const downloadSessionPDF = (session) => {
   <div class="meta">
     <div class="meta-item"><label>Date &amp; Time</label><span>${date}</span></div>
     <div class="meta-item"><label>Duration</label><span>${session.duration || "—"} seconds</span></div>
-    <div class="meta-item"><label>GPS Radius</label><span>${session.classroom?.radius || 100} m</span></div>
+    <div class="meta-item"><label>GPS Radius</label><span>${session.classroom?.radius || 10} m</span></div>
     <div class="meta-item"><label>Session Status</label><span>${session.active ? "🟢 Active" : "🔴 Ended"}</span></div>
   </div>
 
