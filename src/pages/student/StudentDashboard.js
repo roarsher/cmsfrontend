@@ -946,13 +946,21 @@ const StudentDashboard = () => {
                     </p>
                   </div>
                 </div>
-                <button
+                {/* <button
                   onClick={() => downloadNoticePDF(n)}
                   className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg text-xs font-semibold transition opacity-0 group-hover:opacity-100"
                   title="Download as PDF"
                 >
                   <Icons.PDF /> PDF
-                </button>
+                </button> */} 
+                
+<button
+  onClick={() => downloadNoticePDF(n)}
+  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 
+             hover:bg-emerald-100 rounded-lg text-xs font-semibold transition"  
+>
+  <Icons.PDF /> PDF
+</button>
               </div>
             ))}
           </div>

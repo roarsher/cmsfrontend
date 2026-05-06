@@ -121,12 +121,37 @@ const NotificationBell = () => {
   };
 
   // ✅ Click notification → mark read + go to NotificationCenter with correct tab
+  // const handleClick = (n) => {
+  //   if (!n.read) markRead(n._id);
+  //   const tab = TYPE_TAB[n.type] || "notifications";
+  //   navigate(`/${user?.role}/notifications?section=${tab}`);
+  //   setOpen(false);
+  // };
   const handleClick = (n) => {
-    if (!n.read) markRead(n._id);
-    const tab = TYPE_TAB[n.type] || "notifications";
-    navigate(`/${user?.role}/notifications?section=${tab}`);
-    setOpen(false);
-  };
+  if (!n.read) markRead(n._id);
+  setOpen(false);
+  
+  // For notice and routine types, trigger PDF directly from the bell
+  if (n.type === "notice" && n.extraData?.noticeTitle) {
+    const printHTML = (html) => { const w = window.open("", "_blank"); w.document.write(html); w.document.close(); w.print(); };
+    printHTML(`<html><body style="font-family:Arial;padding:40px">
+      <h1>${n.extraData.noticeTitle}</h1>
+      <p>${n.extraData.noticeMessage || n.message}</p>
+      <p style="color:#999;font-size:12px">BCE Bhagalpur ERP · ${new Date().toLocaleString("en-IN")}</p>
+    </body></html>`);
+    return;
+  }
+  
+  if (n.type === "routine" && n.extraData?.slots) {
+    // Navigate to notifications page which will handle the PDF
+    navigate(`/${user?.role}/notifications?section=routine`);
+    return;
+  }
+  
+  // Default: navigate to the right section
+  const tab = TYPE_TAB[n.type] || "notifications";
+  navigate(`/${user?.role}/notifications?section=${tab}`);
+};
 
   // ✅ "View All" → go to NotificationCenter
   const goToCenter = () => {
